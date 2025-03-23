@@ -1,25 +1,18 @@
-import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Meeting from "./pages/Meeting";
+import Pickatime from "./pages/PickATime";
+import CreateRoom from "./pages/CreateRoom";
 
-function App() {
+export default function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/meeting" element={<Meeting />} />
+        <Route path="/pickatime" element={<Pickatime />} />
+        <Route path="/create-room" element={<CreateRoom />} />
+      </Routes>
+    </Router>
   );
 }
-
-export default App;
