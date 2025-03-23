@@ -1,8 +1,9 @@
-// src/pages/Meeting.js
 import React, { useState } from 'react';
 import { Calendar, Clock, X, Plus } from 'react-feather';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
-function Meeting() {
+function CreateRoom() {
   // State for the form
   const [question, setQuestion] = useState('');
   const [newOption, setNewOption] = useState('');
@@ -13,6 +14,89 @@ function Meeting() {
     'onurkafkas1@gmail.com',
     'birkan.yilmaz@bogazici.edu.tr'
   ]);
+
+  const [discussionStartDate, setDiscussionStartDate] = useState(null);
+  const [discussionEndDate, setDiscussionEndDate] = useState(null);
+  const [votingStartDate, setVotingStartDate] = useState(null);
+  const [votingEndDate, setVotingEndDate] = useState(null);
+  const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
+
+  // State to track which date picker is currently showing
+  const [activeDatePicker, setActiveDatePicker] = useState(null);
+
+  // Add this function inside your Meeting component
+  const DateTimePicker = ({ label, selectedDate, onChange, id }) => {
+    // Function to filter available times to 10-minute intervals (XX:X0)
+    const filterTime = (time) => {
+      const minutes = time.getMinutes();
+      return minutes % 10 === 0;
+    };
+
+    return (
+      <div className="flex items-center mb-4">
+        <label className="w-48 font-medium">{label}</label>
+        <div className="flex">
+          <button 
+            type="button"
+            className="border p-2 mr-2 rounded hover:bg-gray-100"
+            onClick={() => {
+              setActiveDatePicker(activeDatePicker === id ? null : id);
+            }}
+          >
+            <Calendar size={20} />
+          </button>
+          <button 
+            type="button"
+            className="border p-2 rounded hover:bg-gray-100"
+            onClick={() => {
+              setActiveDatePicker(activeDatePicker === `${id}-time` ? null : `${id}-time`);
+            }}
+          >
+            <Clock size={20} />
+          </button>
+          
+          {activeDatePicker === id && (
+            <div className="absolute z-10 mt-10">
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => {
+                  onChange(date);
+                  setActiveDatePicker(null);
+                }}
+                inline
+                calendarClassName="bg-white shadow-lg border rounded"
+              />
+            </div>
+          )}
+          
+          {activeDatePicker === `${id}-time` && (
+            <div className="absolute z-10 mt-10">
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date) => {
+                  onChange(date);
+                  setActiveDatePicker(null);
+                }}
+                showTimeSelect
+                showTimeSelectOnly
+                timeIntervals={10}
+                filterTime={filterTime}
+                dateFormat="h:mm aa"
+                inline
+                calendarClassName="bg-white shadow-lg border rounded"
+              />
+            </div>
+          )}
+        </div>
+        
+        {selectedDate && (
+          <div className="ml-4 text-sm">
+            {selectedDate.toLocaleDateString()} {selectedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Add a new option
   const addOption = () => {
@@ -107,54 +191,35 @@ function Meeting() {
             </div>
 
             {/* Date and Time Selectors */}
-            <div className="space-y-4">
-              <div className="flex items-center">
-                <label className="w-48 font-medium">Discussion starts at:</label>
-                <div className="flex">
-                  <button className="border p-2 mr-2 rounded">
-                    <Calendar size={20} />
-                  </button>
-                  <button className="border p-2 rounded">
-                    <Clock size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <label className="w-48 font-medium">Discussion ends at:</label>
-                <div className="flex">
-                  <button className="border p-2 mr-2 rounded">
-                    <Calendar size={20} />
-                  </button>
-                  <button className="border p-2 rounded">
-                    <Clock size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <label className="w-48 font-medium">Voting starts at:</label>
-                <div className="flex">
-                  <button className="border p-2 mr-2 rounded">
-                    <Calendar size={20} />
-                  </button>
-                  <button className="border p-2 rounded">
-                    <Clock size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center">
-                <label className="w-48 font-medium">Voting ends at:</label>
-                <div className="flex">
-                  <button className="border p-2 mr-2 rounded">
-                    <Calendar size={20} />
-                  </button>
-                  <button className="border p-2 rounded">
-                    <Clock size={20} />
-                  </button>
-                </div>
-              </div>
+            {/* Date and Time Selectors */}
+            <div className="space-y-4 relative">
+              <DateTimePicker 
+                label="Discussion starts at:"
+                selectedDate={discussionStartDate}
+                onChange={setDiscussionStartDate}
+                id="discussion-start"
+              />
+              
+              <DateTimePicker 
+                label="Discussion ends at:"
+                selectedDate={discussionEndDate}
+                onChange={setDiscussionEndDate}
+                id="discussion-end"
+              />
+              
+              <DateTimePicker 
+                label="Voting starts at:"
+                selectedDate={votingStartDate}
+                onChange={setVotingStartDate}
+                id="voting-start"
+              />
+              
+              <DateTimePicker 
+                label="Voting ends at:"
+                selectedDate={votingEndDate}
+                onChange={setVotingEndDate}
+                id="voting-end"
+              />
 
               {/* Dropdown Selectors */}
               <div className="flex items-center">
@@ -201,17 +266,13 @@ function Meeting() {
                 </select>
               </div>
 
-              <div className="flex items-center">
-                <label className="w-64 font-medium">Allow users to change their vote until:</label>
-                <div className="flex">
-                  <button className="border p-2 mr-2 rounded">
-                    <Calendar size={20} />
-                  </button>
-                  <button className="border p-2 rounded">
-                    <Clock size={20} />
-                  </button>
-                </div>
-              </div>
+              <DateTimePicker 
+                label="Allow users to change their vote until:"
+                selectedDate={changeVoteUntilDate}
+                onChange={setChangeVoteUntilDate}
+                id="change-vote-until"
+              />
+
             </div>
           </div>
 
@@ -259,4 +320,4 @@ function Meeting() {
   );
 }
 
-export default Meeting;
+export default CreateRoom;
