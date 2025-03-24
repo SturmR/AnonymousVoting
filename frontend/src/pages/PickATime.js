@@ -1,6 +1,6 @@
 // src/pages/PickATime.js
 import React, { useState } from 'react';
-import { Calendar, Clock, Plus } from 'react-feather';
+import { Calendar, Clock, Plus, X } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -21,6 +21,9 @@ function PickATime() {
   const [startTimeForOptions, setStartTimeForOptions] = useState(null);
   const [endTimeForOptions, setEndTimeForOptions] = useState(null);
   const [activeDatePicker, setActiveDatePicker] = useState(null);
+  
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
 
   // Add a new email
   const addEmail = () => {
@@ -28,6 +31,19 @@ function PickATime() {
       setEmails([...emails, newEmail]);
       setNewEmail('');
     }
+  };
+  
+  // Handle create button click
+  const handleCreate = () => {
+    setShowModal(true);
+  };
+  
+  // Handle confirmation
+  const handleConfirm = () => {
+    // Process the form submission here
+    console.log('Form submitted!');
+    setShowModal(false);
+    // Additional logic for form submission
   };
   
   // Date/Time picker component
@@ -100,6 +116,46 @@ function PickATime() {
             {selectedDate.toLocaleDateString()} {selectedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Confirmation Modal Component
+  const ConfirmationModal = () => {
+    if (!showModal) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-lg w-full max-w-md relative">
+          <div className="absolute top-4 right-4">
+            <button 
+              onClick={() => setShowModal(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="p-6">
+            <h3 className="text-xl font-semibold mb-4">Confirmation</h3>
+            <p className="mb-6">Are you sure that you want to set up a room with the given features?</p>
+            
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+              >
+                No
+              </button>
+              <button 
+                onClick={handleConfirm}
+                className="px-4 py-2 bg-[#3395ff] text-white rounded hover:bg-[#2980e4]"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -248,12 +304,18 @@ function PickATime() {
             <button className="w-full bg-[#3395ff] text-white rounded py-2 font-medium">
               Preview
             </button>
-            <button className="w-full bg-[#004999] text-white rounded py-2 font-medium">
+            <button 
+              className="w-full bg-[#004999] text-white rounded py-2 font-medium"
+              onClick={handleCreate}
+            >
               Create
             </button>
           </div>
         </div>
       </div>
+      
+      {/* Render the confirmation modal */}
+      <ConfirmationModal />
     </div>
   );
 }
