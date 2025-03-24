@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, X } from 'react-feather';
 
-function VotingPage() {
+function DiscussionVotingPage() {
   // State for user data
   const [nickname, setNickname] = useState('user#4687');
   const [question, setQuestion] = useState('We are planning to paint all the walls of the office! What should be the new color?');
@@ -157,4 +157,4 @@ function VotingPage() {
   );
 }
 
-export default VotingPage;
+export default DiscussionVotingPage;
