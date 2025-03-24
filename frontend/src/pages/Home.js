@@ -7,11 +7,7 @@ function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-[#3395ff] py-16 text-center">
-        <h1 className="text-white text-4xl font-bold">Home Page</h1>
-      </header>
-
+      
       {/* Main Content */}
       <main className="flex-grow flex justify-center items-center p-8">
         <div className="max-w-6xl w-full flex flex-col md:flex-row gap-0">

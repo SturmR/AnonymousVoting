@@ -123,11 +123,7 @@ function CreateRoom() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-[#3395ff] py-16 text-center">
-        <h1 className="text-white text-4xl font-bold">Creation Page - Discuss&Vote</h1>
-      </header>
-
+      
       {/* Main Content */}
       <main className="flex-grow flex justify-center p-8">
         <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
