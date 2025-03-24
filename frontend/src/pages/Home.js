@@ -1,35 +1,51 @@
-import { useNavigate } from "react-router-dom";
+// src/pages/Home.js
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
-export default function Home() {
+function Home() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Top Bar */}
-      <div className="bg-blue-500 w-full py-4">
-        <div className="max-w-7xl mx-auto text-center text-white font-semibold text-xl">
-          Home Page
-        </div>
-      </div>
-
+    <div className="min-h-screen flex flex-col">
+      
       {/* Main Content */}
-      <div className="flex flex-col items-center justify-center mt-8">
-        <h1 className="text-3xl font-bold mb-6">Welcome</h1>
-        <div className="space-x-4">
-          <button
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-            onClick={() => navigate("/meeting")}
-          >
-            Go to DiscussAndVote
-          </button>
-          <button
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-            onClick={() => navigate("/pickatime")}
-          >
-            Go to Pickatime
-          </button>
+      <main className="flex-grow flex justify-center items-center p-8">
+        <div className="max-w-6xl w-full flex flex-col md:flex-row gap-0">
+          {/* Discuss & Vote Panel */}
+          <div className="w-full md:w-1/2 bg-[#cce4ff] border border-dashed border-[#99caff] p-12 flex flex-col items-center justify-between">
+            <div className="text-center space-y-6">
+              <h2 className="text-[#303030] text-3xl font-bold">Discuss & Vote</h2>
+              <p className="text-[#303030] max-w-md mx-auto">
+                Users discuss and vote on Options, with configurable settings defined by the Host.
+              </p>
+            </div>
+            <button 
+              className="mt-8 bg-[#004999] text-white px-6 py-2 rounded hover:bg-[#003d80] transition-colors"
+              onClick={() => navigate('/create-room')}
+            >
+              Start Setting Up
+            </button>
+          </div>
+
+          {/* Pick A Time Panel */}
+          <div className="w-full md:w-1/2 bg-[#99caff] border border-dashed border-[#99caff] p-12 flex flex-col items-center justify-between">
+            <div className="text-center space-y-6">
+              <h2 className="text-[#303030] text-3xl font-bold">Pick A Time</h2>
+              <p className="text-[#303030] max-w-md mx-auto">
+                A simplified poll for scheduling without discussion.
+              </p>
+            </div>
+            <button 
+              className="mt-8 bg-[#004999] text-white px-6 py-2 rounded hover:bg-[#003d80] transition-colors"
+              onClick={() => navigate('/pickatime')}
+            >
+              Start Setting Up
+            </button>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+
+export default Home;
