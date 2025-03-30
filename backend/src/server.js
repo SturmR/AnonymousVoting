@@ -17,11 +17,11 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // Simple route (optional)
 app.get("/", (req, res) => {
-  res.send("Backend is running");
+  res.json({ message: "Backend is running..." });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log("Server listening on port ${PORT}");
+  console.log(`Server listening on port ${PORT}`);
 });
