@@ -8,6 +8,8 @@
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^13.5.0",
     "frontend": "file:",
+    "mongodb": "^6.15.0",
+    "mongoose": "^8.12.2",
     "react": "^19.0.0",
     "react-datepicker": "^8.2.1",
     "react-dom": "^19.0.0",
