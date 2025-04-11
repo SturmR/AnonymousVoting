@@ -9,11 +9,7 @@ function CreateRoom() {
   const [newOption, setNewOption] = useState('');
   const [options, setOptions] = useState([]);
   const [newEmail, setNewEmail] = useState('');
-  const [emails, setEmails] = useState([
-    'nazireata@gmail.com',
-    'onurkafkas1@gmail.com',
-    'birkan.yilmaz@bogazici.edu.tr'
-  ]);
+  const [emails, setEmails] = useState([]);
 
   const [discussionStartDate, setDiscussionStartDate] = useState(null);
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
@@ -178,6 +174,9 @@ function CreateRoom() {
     }
   };
 
+  const isDiscussionTimeInvalid = discussionEndDate && discussionStartDate && discussionEndDate < discussionStartDate;
+  const isVotingTimeInvalid = votingEndDate && votingStartDate && votingEndDate < votingStartDate;
+
   return (
     <div className="min-h-screen flex flex-col">
       
@@ -220,7 +219,7 @@ function CreateRoom() {
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {options.length > 0 ? (
+                {options.length > 0 &&
                   options.map((option, index) => (
                     <div key={index} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
                       {option}
@@ -228,18 +227,7 @@ function CreateRoom() {
                         <X size={14} />
                       </button>
                     </div>
-                  ))
-                ) : (
-                  // Placeholder options
-                  Array(10).fill(0).map((_, index) => (
-                    <div key={index} className="bg-orange-500 text-white rounded-full px-3 py-1 flex items-center">
-                      Orange
-                      <button className="ml-2">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))
-                )}
+                  ))}
               </div>
             </div>
 
@@ -259,6 +247,9 @@ function CreateRoom() {
                 onChange={setDiscussionEndDate}
                 id="discussion-end"
               />
+              {isDiscussionTimeInvalid && (
+                <p className="text-red-500 text-sm">Discussion end time must be after start time.</p>
+              )}
               
               <DateTimePicker 
                 label="Voting starts at:"
@@ -273,7 +264,10 @@ function CreateRoom() {
                 onChange={setVotingEndDate}
                 id="voting-end"
               />
-
+              {isVotingTimeInvalid && (
+                <p className="text-red-500 text-sm">Voting end time must be after start time.</p>
+              )}
+              
               {/* Dropdown Selectors */}
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to submit new Options?</label>
