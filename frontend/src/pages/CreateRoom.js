@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -26,18 +27,43 @@ function CreateRoom() {
     
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  const [canAddOption, setCanAddOption] = useState(true);
+  const [canEditVote, setCanEditVote] = useState(true);
+  const [minOptionsPerVote, setMinOptionsPerVote] = useState(1);
+  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState(1);
 
   // Handle create button click
   const handleCreate = () => {
     setShowModal(true);
   };
   
-  // Handle confirmation
-  const handleConfirm = () => {
-    // Process the form submission here
-    console.log('Form submitted!');
-    setShowModal(false);
-    // Additional logic for form submission
+  // Handle confirmation: create the Room via backend, then navigate into it
+  const handleConfirm = async () => {
+    try {
+      const payload = {
+        title: question,
+        description: '',            // or add a description field in state
+        type: 'DiscussAndVote',
+        discussionStart: discussionStartDate,
+        discussionEnd:   discussionEndDate,
+        votingStart:     votingStartDate,
+        votingEnd:       votingEndDate,
+        canAddOption,
+        canEditVote,
+        editVoteUntil:   changeVoteUntilDate,
+        minOptionsPerVote,
+        maxOptionsPerVote,
+        userList:        emails     // assuming backend will create User docs
+      };
+  
+      const { data: room } = await axios.post('/api/rooms', payload);
+      setShowModal(false);
+      // Redirect into the new room
+      navigate(`/rooms/${room._id}`);
+    } catch (err) {
+      console.error('Room creation failed:', err);
+      alert('Could not create room. Try again.');
+    }
   };
   
 
@@ -277,8 +303,9 @@ function CreateRoom() {
               {/* Dropdown Selectors */}
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to submit new Options?</label>
-                <select className="border rounded px-3 py-1 w-24">
-                  <option>Select</option>
+                <select className="border rounded px-3 py-1 w-24"
+                  value={canAddOption ? 'yes' : 'no'}
+                  onChange={e => setCanAddOption(e.target.value === 'yes')}>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
                 </select>
@@ -286,7 +313,9 @@ function CreateRoom() {
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select className="border rounded px-3 py-1 w-24"
+                  value={canEditVote ? 'yes' : 'no'}
+                  onChange={e => setCanEditVote(e.target.value === 'yes')}>
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -295,14 +324,11 @@ function CreateRoom() {
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
-                <select className="border rounded px-3 py-1 w-24">
-                  <option>Select</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                  <option value="no-limit">No limit</option>
+                <select className="border rounded px-3 py-1 w-24"
+                  value={minOptionsPerVote}
+                  onChange={e => setMinOptionsPerVote(Number(e.target.value))}>
+                 {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                  <option value="0">No limit</option>
                 </select>
               </div>
 
