@@ -68,6 +68,7 @@ function DiscussionRoom() {
   
   // Update time remaining calculations
   const updateTimeRemaining = () => {
+    if (!pollInfo) return;
     const now = new Date();
     
     // Discussion time remaining
@@ -184,7 +185,7 @@ function DiscussionRoom() {
               
               <div className="flex flex-wrap gap-2 mb-4">
                 {options.map(o => (
-                  <span key={o_id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
+                  <span key={o._id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
                     {o.content} ({o.numberOfVotes})
                   </span>
                 ))}
@@ -241,7 +242,10 @@ function DiscussionRoom() {
                   </select>
                 </div>
                 <div className="ml-auto">
-                  <button className="bg-[#3395ff] text-white rounded px-4 py-2">
+                  <button 
+                    className="bg-[#3395ff] text-white rounded px-4 py-2"
+                    onClick={addComment}  
+                  >
                     Post
                   </button>
                 </div>
@@ -282,7 +286,7 @@ function DiscussionRoom() {
                         </span>
                       ))}
                       <span className="ml-auto text-gray-500 text-sm">
-                        {timeAgo(comment.timestamp)}
+                        {timeAgo(new Date(comment.timestamp))}
                       </span>
                     </div>
                     <p className="mb-2">{comment.content}</p>
