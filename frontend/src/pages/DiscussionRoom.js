@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ThumbsUp, ThumbsDown, Filter, ArrowRight, Plus } from 'react-feather';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 function DiscussionRoom() {
   // Get room ID from URL params
@@ -13,50 +14,15 @@ function DiscussionRoom() {
   
   // State for user data
   const [nickname, setNickname] = useState('');
-  const [question, setQuestion] = useState('We are planning to paint all the walls of the office! What should be the new color?');
-  const [options, setOptions] = useState([
-    { id: 1, text: 'Blue', votes: 10 },
-    { id: 2, text: 'Blue', votes: 10 },
-    { id: 3, text: 'Blue', votes: 10 },
-    { id: 4, text: 'Blue', votes: 10 },
-    { id: 5, text: 'Blue', votes: 10 },
-    { id: 6, text: 'Blue', votes: 10 },
-    { id: 7, text: 'Blue', votes: 10 },
-    { id: 8, text: 'Blue', votes: 10 },
-    { id: 9, text: 'Blue', votes: 10 },
-    { id: 10, text: 'Orangensaftgeschmack', votes: 10 },
-    { id: 11, text: 'Blue', votes: 10 },
-  ]);
+  const [question, setQuestion] = useState('');
+  const [options, setOptions] = useState([]);
   const [newOption, setNewOption] = useState('');
-  const [comments, setComments] = useState([
-    { 
-      id: 1, 
-      user: 'User#4191', 
-      text: 'Totam itaque voluptate ut. Est et similique provident repellendus. Dolore consequatur eius maxime.',
-      tags: ['pro', 'orange'],
-      votes: 276,
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
-    },
-    { 
-      id: 2, 
-      user: 'User#4191', 
-      text: 'Totam itaque voluptate ut. Est et similique provident repellendus. Dolore consequatur eius maxime.',
-      tags: ['pro', 'orange'],
-      votes: 276,
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
-    }
-  ]);
+  const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [searchComment, setSearchComment] = useState('');
   
   // Poll info
-  const [pollInfo, setPollInfo] = useState({
-    canAddOptions: true,
-    votingBegins: new Date('2025-03-18T10:00:00'),
-    votingEnds: new Date('2025-03-22T23:59:00'),
-    votesEditableUntil: new Date('2025-03-22T10:00:00'),
-    discussionEnds: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000 + 30 * 60 * 1000)
-  });
+  const [pollInfo, setPollInfo] = useState(null);
   
   // Calculate time remaining
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
@@ -64,36 +30,41 @@ function DiscussionRoom() {
   
   // Generate or retrieve nickname on component mount
   useEffect(() => {
-    // Check if user already has a nickname stored for this room
-    const storedNickname = localStorage.getItem(`room_${roomId}_nickname`);
-    
-    if (storedNickname) {
-      // Use existing nickname
-      setNickname(storedNickname);
-    } else {
-      // Generate a new nickname (in a real app, this would come from the backend)
-      const newNickname = `user${Math.floor(1000 + Math.random() * 9000)}`;
-      setNickname(newNickname);
-      
-      // Store the nickname in localStorage for persistence
-      localStorage.setItem(`room_${roomId}_nickname`, newNickname);
-    }
-    
-    // In a real app, we would make an API call here to:
-    // 1. Validate the user token
-    // 2. Get the room data (question, options, comments)
-    // 3. Get or generate the user's nickname
-    
-    // Set up timer to update time remaining
-    const timer = setInterval(() => {
-      updateTimeRemaining();
-    }, 60000); // Update every minute
-    
-    // Initial update
+    const fetchData = async () => {
+      try {
+        const { data: room } = await axios.get(`/api/rooms/${roomId}`);
+        setQuestion(room.title);
+        setPollInfo({
+          canAddOptions: room.canAddOption,
+          votingBegins: new Date(room.votingStart),
+          votingEnds:    new Date(room.votingEnd),
+          votesEditableUntil: new Date(room.editVoteUntil),
+          discussionEnds:     new Date(room.discussionEnd),
+        });  
+        const [optRes, comRes] = await Promise.all([
+          axios.get(`/api/options?room=${roomId}`),
+          axios.get(`/api/comments?room=${roomId}`)
+        ]);
+        setOptions(optRes.data);
+        setComments(comRes.data);
+      } catch (err) {
+        console.error('Error fetching:', err);
+      }
+    };
+    fetchData();
+    // nickname persistence
+    const key = `room_${roomId}_nickname`;
+    const stored = localStorage.getItem(key);
+    if (stored) setNickname(stored);
+    else {
+      const newNick = `user${1000 + Math.floor(Math.random()*9000)}`;
+      setNickname(newNick);
+      localStorage.setItem(key, newNick);
+    }  
+    const timer = setInterval(updateTimeRemaining, 60000);
     updateTimeRemaining();
-    
     return () => clearInterval(timer);
-  }, [roomId, userToken]);
+  }, [roomId]);
   
   // Update time remaining calculations
   const updateTimeRemaining = () => {
@@ -133,37 +104,35 @@ function DiscussionRoom() {
     });
   };
   
-  // Add a new option
-  const addOption = () => {
-    if (newOption.trim() && pollInfo.canAddOptions) {
-      const newId = options.length > 0 ? Math.max(...options.map(o => o.id)) + 1 : 1;
-      setOptions([...options, { id: newId, text: newOption, votes: 0 }]);
+  const addOption = async () => {
+    if (!newOption.trim() || !pollInfo.canAddOptions) return;
+    try {
+      const res = await axios.post('/api/options', {
+        room: roomId,
+        content: newOption
+      });
+      setOptions(prev => [...prev, res.data]);
       setNewOption('');
-      
-      // In a real app, we would make an API call to add the option to the backend
+    } catch(e) {
+      console.error(e);
     }
   };
   
-  // Add a new comment
-  const addComment = () => {
-    if (newComment.trim()) {
-      const newId = comments.length > 0 ? Math.max(...comments.map(c => c.id)) + 1 : 1;
-      setComments([
-        ...comments, 
-        { 
-          id: newId, 
-          user: nickname, 
-          text: newComment,
-          tags: [],
-          votes: 0,
-          timestamp: new Date()
-        }
-      ]);
+  const addComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      const res = await axios.post('/api/comments', {
+        room: roomId,
+        content: newComment,
+        user: nickname
+      });
+      setComments(prev => [...prev, res.data]);
       setNewComment('');
-      
-      // In a real app, we would make an API call to add the comment to the backend
+    } catch(e) {
+      console.error(e);
     }
   };
+  
   
   // Calculate time ago for comments
   const timeAgo = (date) => {
@@ -214,10 +183,10 @@ function DiscussionRoom() {
               </div>
               
               <div className="flex flex-wrap gap-2 mb-4">
-                {options.map((option) => (
-                  <div key={option.id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
-                    {option.text} ({option.votes})
-                  </div>
+                {options.map(o => (
+                  <span key={o_id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
+                    {o.content} ({o.numberOfVotes})
+                  </span>
                 ))}
               </div>
               
@@ -303,7 +272,7 @@ function DiscussionRoom() {
               
               {/* Comment List */}
               <div className="space-y-6">
-                {comments.map((comment) => (
+                {comments.map(comment => (
                   <div key={comment.id} className="border-b pb-4">
                     <div className="flex items-center mb-2">
                       <span className="font-semibold mr-2">{comment.user}</span>
@@ -316,7 +285,7 @@ function DiscussionRoom() {
                         {timeAgo(comment.timestamp)}
                       </span>
                     </div>
-                    <p className="mb-2">{comment.text}</p>
+                    <p className="mb-2">{comment.content}</p>
                     <div className="flex items-center text-gray-500">
                       <button className="mr-1">
                         <ThumbsUp size={16} />
@@ -365,9 +334,16 @@ function DiscussionRoom() {
             </div>
             
             <div>
+            <button onClick={() =>
+              navigate(`/rooms/${roomId}/vote?token=${userToken}`)
+            }>
+              Go to Voting <ArrowRight className="ml-2"/>
+            </button>
+              {/*
               <button className="flex items-center bg-gray-200 hover:bg-gray-300 rounded px-4 py-2 text-gray-700">
                 Go to Voting <ArrowRight size={16} className="ml-2" />
               </button>
+              */}
             </div>
           </div>
         </div>
