@@ -9,17 +9,20 @@ function CreateRoom() {
   const [newOption, setNewOption] = useState('');
   const [options, setOptions] = useState([]);
   const [newEmail, setNewEmail] = useState('');
-  const [emails, setEmails] = useState([
-    'nazireata@gmail.com',
-    'onurkafkas1@gmail.com',
-    'birkan.yilmaz@bogazici.edu.tr'
-  ]);
+  const [emails, setEmails] = useState([]);
+  const [formError, setFormError] = useState('');
 
   const [discussionStartDate, setDiscussionStartDate] = useState(null);
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
   const [votingStartDate, setVotingStartDate] = useState(null);
   const [votingEndDate, setVotingEndDate] = useState(null);
   const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
+  const [allowSubmitOptions, setAllowSubmitOptions] = useState('Select');
+  const [allowVoteChange, setAllowVoteChange] = useState('Select');
+  const [minVotes, setMinVotes] = useState('Select');
+  const [maxVotes, setMaxVotes] = useState('Select');
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
 
   // State to track which date picker is currently showing
   const [activeDatePicker, setActiveDatePicker] = useState(null);
@@ -29,7 +32,27 @@ function CreateRoom() {
 
   // Handle create button click
   const handleCreate = () => {
-    setShowModal(true);
+    setAttemptedSubmit(true);
+    
+    if (isQuestionEmpty) {
+      setFormError('Please enter a discussion question.');
+      setShowModal(false);
+    } else if (isAnyDateMissing) {
+      setFormError('Please fill in all required date and time fields.');
+      setShowModal(false);
+    } else if (isDiscussionTimeInvalid || isVotingTimeInvalid) {
+      setFormError('Please make sure all end times are after their respective start times.');
+      setShowModal(false);
+    } else if (isChangeVoteTimeInvalid) {
+      setFormError('Please make sure vote change time limit is in between voting start time and voting end time.');
+      setShowModal(false);
+    } else if (isDropdownInvalid) {
+      setFormError('Please make sure to select all settings.');
+      setShowModal(false);  
+    } else {
+      setFormError('');
+      setShowModal(true);
+    }
   };
   
   // Handle confirmation
@@ -178,6 +201,36 @@ function CreateRoom() {
     }
   };
 
+  const isDiscussionTimeInvalid =
+    discussionStartDate && discussionEndDate && discussionEndDate <= discussionStartDate;
+
+  const isVotingTimeInvalid =
+    votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
+
+  const isChangeVoteTimeInvalid =
+    votingStartDate && changeVoteUntilDate && votingEndDate && changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate;
+
+  const isAnyDateMissing =
+    !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || !changeVoteUntilDate;
+
+  const isQuestionEmpty = question.trim() === '';
+
+  const isEmailsInvalid = emails.length === 0;
+
+  const isDropdownInvalid =
+    allowSubmitOptions === 'Select' ||
+    allowVoteChange === 'Select' ||
+    minVotes === 'Select' ||
+    maxVotes === 'Select'; 
+
+  const isFormValid = 
+    !isDiscussionTimeInvalid && 
+    !isVotingTimeInvalid && 
+    !isAnyDateMissing && 
+    !isQuestionEmpty && 
+    !isEmailsInvalid && 
+    !isDropdownInvalid;
+
   return (
     <div className="min-h-screen flex flex-col">
       
@@ -220,7 +273,7 @@ function CreateRoom() {
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {options.length > 0 ? (
+                {options.length > 0 &&
                   options.map((option, index) => (
                     <div key={index} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
                       {option}
@@ -228,18 +281,7 @@ function CreateRoom() {
                         <X size={14} />
                       </button>
                     </div>
-                  ))
-                ) : (
-                  // Placeholder options
-                  Array(10).fill(0).map((_, index) => (
-                    <div key={index} className="bg-orange-500 text-white rounded-full px-3 py-1 flex items-center">
-                      Orange
-                      <button className="ml-2">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))
-                )}
+                  ))}
               </div>
             </div>
 
@@ -259,6 +301,9 @@ function CreateRoom() {
                 onChange={setDiscussionEndDate}
                 id="discussion-end"
               />
+              {isDiscussionTimeInvalid && (
+                <p className="text-red-500 text-sm">Discussion end time must be after start time.</p>
+              )}
               
               <DateTimePicker 
                 label="Voting starts at:"
@@ -273,11 +318,20 @@ function CreateRoom() {
                 onChange={setVotingEndDate}
                 id="voting-end"
               />
-
+              {isVotingTimeInvalid && (
+                <p className="text-red-500 text-sm">Voting end time must be after start time.</p>
+              )}
+              
               {/* Dropdown Selectors */}
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to submit new Options?</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && allowSubmitOptions === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}                
+                  value={allowSubmitOptions}
+                  onChange={(e) => setAllowSubmitOptions(e.target.value)}
+                >
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -286,7 +340,14 @@ function CreateRoom() {
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
+                  value={allowVoteChange}
+                  onChange={(e) => setAllowVoteChange(e.target.value)}
+                >
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -295,27 +356,41 @@ function CreateRoom() {
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && minVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
+                  value={minVotes}
+                  onChange={(e) => setMinVotes(e.target.value)}
+                >
                   <option>Select</option>
+                  <option value="no-limit">No limit</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
                   <option value="5">5</option>
-                  <option value="no-limit">No limit</option>
                 </select>
               </div>
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && maxVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
+                  value={maxVotes}
+                  onChange={(e) => setMaxVotes(e.target.value)}
+                >
                   <option>Select</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
                   <option value="5">5</option>
-                  <option value="no-limit">No limit</option>
+                  <option value="no-limit">No Limit</option>
                 </select>
               </div>
 
@@ -325,6 +400,9 @@ function CreateRoom() {
                 onChange={setChangeVoteUntilDate}
                 id="change-vote-until"
               />
+              {isChangeVoteTimeInvalid && (
+                <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
+              )}
 
             </div>
           </div>
@@ -363,11 +441,14 @@ function CreateRoom() {
                 Preview
               </button>
               <button 
-              className="w-full bg-[#004999] text-white rounded py-2 font-medium"
-              onClick={handleCreate}
+                className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80]"
+                onClick={handleCreate}
               >
                 Create
               </button>
+              {formError && (
+                <p className="text-red-500 text-sm mt-1">{formError}</p>
+              )}
             </div>
           </div>
         </div>
