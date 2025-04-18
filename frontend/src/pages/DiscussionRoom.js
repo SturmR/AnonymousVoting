@@ -21,6 +21,8 @@ function DiscussionRoom() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [searchComment, setSearchComment] = useState('');
+  const [selectedOptionId, setSelectedOptionId] = useState('');
+  const [selectedOpinion, setSelectedOpinion] = useState('');
   
   // Poll info
   const [pollInfo, setPollInfo] = useState(null);
@@ -126,14 +128,19 @@ function DiscussionRoom() {
       const res = await axios.post('/api/comments', {
         room: roomId,
         content: newComment,
-        user: nickname
+        user: nickname,
+        relatedOption: selectedOptionId || undefined,
+        isPro: selectedOpinion === 'pro',
+        isCon: selectedOpinion === 'con'
       });
       setComments(prev => [...prev, res.data]);
       setNewComment('');
-    } catch(e) {
+      setSelectedOptionId('');
+      setSelectedOpinion('');
+    } catch (e) {
       console.error(e);
     }
-  };
+  };  
   
   
   // Calculate time ago for comments
@@ -244,13 +251,26 @@ function DiscussionRoom() {
               
               <div className="flex mb-4">
                 <div className="mr-2">
-                  <select className="border rounded p-2">
-                    <option>Option</option>
+                  <select
+                    className="border rounded p-2"
+                    value={selectedOptionId}
+                    onChange={(e) => setSelectedOptionId(e.target.value)}
+                  >
+                    <option value="">Option</option>
+                    {options.map((opt) => (
+                      <option key={opt._id} value={opt._id}>{opt.content}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <select className="border rounded p-2">
-                    <option>Opinion</option>
+                  <select
+                    className="border rounded p-2"
+                    value={selectedOpinion}
+                    onChange={(e) => setSelectedOpinion(e.target.value)}
+                  >
+                    <option value="">Opinion</option>
+                    <option value="pro">Pro</option>
+                    <option value="con">Con</option>
                   </select>
                 </div>
                 <div className="ml-auto">
