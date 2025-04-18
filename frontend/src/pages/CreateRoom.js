@@ -61,7 +61,6 @@ function CreateRoom() {
   // Handle confirmation: create the Room via backend, then navigate into it
   const handleConfirm = async () => {
     console.log("🔥 handleConfirm fired!", { discussionStartDate, votingStartDate });
-    debugger;
     try {
       const payload = {
         title: question,
@@ -248,6 +247,7 @@ function CreateRoom() {
     }
   };
 
+  // TODO: check these!!!
   const isDiscussionTimeInvalid =
     discussionStartDate && discussionEndDate && discussionEndDate <= discussionStartDate;
 
@@ -255,7 +255,7 @@ function CreateRoom() {
     votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
 
   const isChangeVoteTimeInvalid =
-    votingStartDate && changeVoteUntilDate && votingEndDate && changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate;
+    (votingStartDate && changeVoteUntilDate && votingEndDate && changeVoteUntilDate <= votingStartDate) || (votingEndDate < changeVoteUntilDate);
 
   const isAnyDateMissing =
     !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || !changeVoteUntilDate;
@@ -334,7 +334,6 @@ function CreateRoom() {
             </div>
 
             {/* Date and Time Selectors */}
-            {/* Date and Time Selectors */}
             <div className="space-y-4 relative">
               <DateTimePicker 
                 label="Discussion starts at:"
@@ -391,8 +390,7 @@ function CreateRoom() {
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
                     attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                
+                  }`}                
                   value={allowVoteChange}
                   onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
@@ -401,6 +399,16 @@ function CreateRoom() {
                   <option value="no">No</option>
                 </select>
               </div>
+
+              <DateTimePicker 
+                label="Allow users to change their vote until:"
+                selectedDate={changeVoteUntilDate}
+                onChange={setChangeVoteUntilDate}
+                id="change-vote-until"
+              />
+              {isChangeVoteTimeInvalid && (
+                <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
+              )}
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
@@ -442,15 +450,7 @@ function CreateRoom() {
                 </select>
               </div>
 
-              <DateTimePicker 
-                label="Allow users to change their vote until:"
-                selectedDate={changeVoteUntilDate}
-                onChange={setChangeVoteUntilDate}
-                id="change-vote-until"
-              />
-              {isChangeVoteTimeInvalid && (
-                <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
-              )}
+              
 
             </div>
           </div>

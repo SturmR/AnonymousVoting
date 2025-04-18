@@ -1,5 +1,7 @@
 // src/pages/PickATime.js
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Calendar, Clock, Plus, X } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -7,19 +9,26 @@ import "react-datepicker/dist/react-datepicker.css";
 function PickATime() {
   // State for the form
   const [question, setQuestion] = useState('');
-  const [emails, setEmails] = useState([
-    'nazireata@gmail.com',
-    'onurkafkas1@gmail.com',
-    'birkan.yilmaz@bogazici.edu.tr'
-  ]);
+  const [options, setOptions] = useState([]);
+  const [emails, setEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
+  const [formError, setFormError] = useState('');
+  const navigate = useNavigate();
   
   // Date/time state
   const [votingStartDate, setVotingStartDate] = useState(null);
   const [votingEndDate, setVotingEndDate] = useState(null);
   const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
-  const [startTimeForOptions, setStartTimeForOptions] = useState(null);
-  const [endTimeForOptions, setEndTimeForOptions] = useState(null);
+  const [allowVoteChange, setAllowVoteChange] = useState('Select');
+  const [minOptionsPerVote, setMinOptionsPerVote] = useState('Select');
+  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState('Select');
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
+  const [optionsStartDate, setOptionsStartDate]   = useState(null);
+  const [optionsEndDate,   setOptionsEndDate]     = useState(null);
+  const [stepSize,         setStepSize]           = useState('Select');
+  const [includeWeekends,  setIncludeWeekends]    = useState('Select');
+
   const [activeDatePicker, setActiveDatePicker] = useState(null);
   
   // Modal state
@@ -35,16 +44,92 @@ function PickATime() {
   
   // Handle create button click
   const handleCreate = () => {
-    setShowModal(true);
+    setAttemptedSubmit(true);
+    
+    if (isQuestionEmpty) {
+      setFormError('Please enter a discussion question.');
+      setShowModal(false);
+    } else if (isAnyDateMissing) {
+      setFormError('Please fill in all required date and time fields.');
+      setShowModal(false);
+    } else if (isVotingTimeInvalid) {
+      setFormError('Please make sure all end times are after their respective start times.');
+      setShowModal(false);
+    } else if (isChangeVoteTimeInvalid) {
+      setFormError('Please make sure vote change time limit is in between voting start time and voting end time.');
+      setShowModal(false);
+    } else if (isDropdownInvalid) {
+      setFormError('Please make sure to select all settings.');
+      setShowModal(false);  
+    } else {
+      setFormError('');
+      setShowModal(true);
+    }
   };
-  
-  // Handle confirmation
-  const handleConfirm = () => {
-    // Process the form submission here
-    console.log('Form submitted!');
+
+  const handleConfirm = async () => {
+    const slots = [];
+    for (
+      let d = new Date(optionsStartDate);
+      d <= optionsEndDate;
+      d = new Date(d.getTime() + Number(stepSize) * 60000))
+     {
+      debugger;
+      if (
+        includeWeekends === 'no' &&
+        (d.getDay() === 0 || d.getDay() === 6)
+      ) continue;
+
+      slots.push(d.toISOString());
+    }
+
+    const payload = {
+      title: question,
+      type: 'PickATime',
+      votingStart: votingStartDate,
+      votingEnd: votingEndDate,
+      canEditVote: allowVoteChange === 'yes',
+      editVoteUntil: changeVoteUntilDate,
+      minOptionsPerVote: minOptionsPerVote === 'no-limit'
+        ? 0
+        : parseInt(minOptionsPerVote, 10),
+      maxOptionsPerVote: maxOptionsPerVote === 'no-limit'
+        ? 0
+        : parseInt(maxOptionsPerVote, 10),
+      userList: emails,
+    };
+
+  try {
+    const { data: room } = await axios.post(
+      'http://localhost:5000/api/rooms',
+      payload
+    );
+
+    console.log('slots are:', slots);
+    const createOps = slots.map(iso =>
+      axios.post("http://localhost:5000/api/options", { room:room._id, content:iso}) // what is iso??
+    );
+    const results = await Promise.all(createOps);
+
+    // 3) Collect the new Option IDs
+    const optionIds = results.map(r => r.data._id);
+
+    // 4) Patch the room’s optionList
+    await axios.put(`http://localhost:5000/api/rooms/${room._id}`, {
+      optionList: optionIds
+    });
+
     setShowModal(false);
-    // Additional logic for form submission
-  };
+    navigate(`/rooms/${room._id}`);
+  } catch (err) {
+    console.error(err);
+    alert(
+      'Could not create room. Try again.\n' +
+        (err.response?.data?.message || err.message)
+    );
+  }
+};
+    
   
   // Date/Time picker component
   const DateTimePicker = ({ label, selectedDate, onChange, id }) => {
@@ -160,6 +245,40 @@ function PickATime() {
     );
   };
 
+  // Remove an option
+  const removeOption = (index) => {
+    const newOptions = [...options];
+    newOptions.splice(index, 1);
+    setOptions(newOptions);
+  };
+
+  // TODO: check these!!!
+  const isVotingTimeInvalid =
+    votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
+
+  const isChangeVoteTimeInvalid =
+    votingStartDate && changeVoteUntilDate && votingEndDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
+
+  const isAnyDateMissing =
+    !votingStartDate || !votingEndDate || !changeVoteUntilDate;
+
+  const isQuestionEmpty = question.trim() === '';
+
+  const isEmailsInvalid = emails.length === 0;
+
+  const isDropdownInvalid =
+    allowVoteChange === 'Select' ||
+    minOptionsPerVote === 'Select' ||
+    maxOptionsPerVote === 'Select' ||
+    optionsStartDate === null ||
+    optionsEndDate === null; 
+
+  const isFormValid = !isQuestionEmpty && 
+                      !isAnyDateMissing && 
+                      !isVotingTimeInvalid && 
+                      !isChangeVoteTimeInvalid && 
+                      !isDropdownInvalid;
+
   return (
     <div className="flex-grow flex justify-center p-8">
       <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
@@ -191,11 +310,19 @@ function PickATime() {
               onChange={setVotingEndDate}
               id="voting-end"
             />
-
+            {isVotingTimeInvalid && (
+              <p className="text-red-500 text-sm">Voting end time must be after start time.</p>
+            )}
             {/* Dropdown Selectors */}
             <div className="flex items-center mb-4">
               <label className="w-64 font-medium">Allow Users to change their votes?</label>
-              <select className="border rounded px-3 py-1 w-24">
+              <select 
+                className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                  attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
+                }`}
+                value={allowVoteChange}
+                onChange={(e) => setAllowVoteChange(e.target.value)}
+              >
                 <option>Select</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
@@ -208,36 +335,55 @@ function PickATime() {
               onChange={setChangeVoteUntilDate}
               id="change-vote-until"
             />
+            {isChangeVoteTimeInvalid && (
+              <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
+            )}
+<div className="flex items-center">
+                <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
+                  value={minOptionsPerVote}
+                  onChange={(e) => setMinOptionsPerVote(e.target.value)}
+                >
+                  <option>Select</option>
+                  <option value="no-limit">No limit</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
 
-            <div className="flex items-center mb-4">
-              <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
-              <select className="border rounded px-3 py-1 w-24">
-                <option>Select</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="no-limit">No limit</option>
-              </select>
-            </div>
-
-            <div className="flex items-center mb-4">
-              <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
-              <select className="border rounded px-3 py-1 w-24">
-                <option>Select</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="no-limit">No limit</option>
-              </select>
-            </div>
+              <div className="flex items-center">
+                <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
+                  value={maxOptionsPerVote}
+                  onChange={(e) => setMaxOptionsPerVote(e.target.value)}
+                >
+                  <option>Select</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="no-limit">No Limit</option>
+                </select>
+              </div>
 
             <div className="flex items-center mb-4">
               <label className="w-64 font-medium">The step size for time options</label>
-              <select className="border rounded px-3 py-1 w-24">
+              <select className="border rounded px-3 py-1 w-24"
+                value={stepSize}
+                onChange={e => setStepSize(e.target.value)}
+              >
                 <option>Select</option>
                 <option value="15">15 min</option>
                 <option value="30">30 min</option>
@@ -248,21 +394,24 @@ function PickATime() {
 
             <DateTimePicker 
               label="The start time for time options"
-              selectedDate={startTimeForOptions}
-              onChange={setStartTimeForOptions}
-              id="start-time-options"
+              selectedDate={optionsStartDate}
+              onChange={setOptionsStartDate}
+              id="options-start-date"
             />
 
             <DateTimePicker 
               label="The end time for time options"
-              selectedDate={endTimeForOptions}
-              onChange={setEndTimeForOptions}
-              id="end-time-options"
+              selectedDate={optionsEndDate}
+              onChange={setOptionsEndDate}
+              id="options-end-date"
             />
 
             <div className="flex items-center mb-4">
               <label className="w-64 font-medium">Include weekends?</label>
-              <select className="border rounded px-3 py-1 w-24">
+              <select className="border rounded px-3 py-1 w-24"
+                value={includeWeekends}
+                onChange={e => setIncludeWeekends(e.target.value)}
+              >
                 <option>Select</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
