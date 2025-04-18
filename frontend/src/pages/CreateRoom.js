@@ -367,15 +367,6 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
                 <select
-<<<<<<< .mine
-                  value={canEditVote ? 'yes' : 'no'}
-                  onChange={e => setCanEditVote(e.target.value === 'yes')}>
-
-
-
-
-
-=======
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
                     attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -383,7 +374,6 @@ function CreateRoom() {
                   value={allowVoteChange}
                   onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
->>>>>>> .theirs
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
