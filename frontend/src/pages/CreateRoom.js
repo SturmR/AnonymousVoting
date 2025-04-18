@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -29,6 +30,10 @@ function CreateRoom() {
     
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  const [canAddOption, setCanAddOption] = useState(true);
+  const [canEditVote, setCanEditVote] = useState(true);
+  const [minOptionsPerVote, setMinOptionsPerVote] = useState(1);
+  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState(1);
 
   // Handle create button click
   const handleCreate = () => {
@@ -55,12 +60,33 @@ function CreateRoom() {
     }
   };
   
-  // Handle confirmation
-  const handleConfirm = () => {
-    // Process the form submission here
-    console.log('Form submitted!');
-    setShowModal(false);
-    // Additional logic for form submission
+  // Handle confirmation: create the Room via backend, then navigate into it
+  const handleConfirm = async () => {
+    try {
+      const payload = {
+        title: question,
+        description: '',            // or add a description field in state
+        type: 'DiscussAndVote',
+        discussionStart: discussionStartDate,
+        discussionEnd:   discussionEndDate,
+        votingStart:     votingStartDate,
+        votingEnd:       votingEndDate,
+        canAddOption,
+        canEditVote,
+        editVoteUntil:   changeVoteUntilDate,
+        minOptionsPerVote,
+        maxOptionsPerVote,
+        userList:        emails     // assuming backend will create User docs
+      };
+  
+      const { data: room } = await axios.post('/api/rooms', payload);
+      setShowModal(false);
+      // Redirect into the new room
+      navigate(`/rooms/${room._id}`);
+    } catch (err) {
+      console.error('Room creation failed:', err);
+      alert('Could not create room. Try again.');
+    }
   };
   
 
@@ -341,6 +367,15 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
                 <select
+<<<<<<< .mine
+                  value={canEditVote ? 'yes' : 'no'}
+                  onChange={e => setCanEditVote(e.target.value === 'yes')}>
+
+
+
+
+
+=======
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
                     attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -348,6 +383,7 @@ function CreateRoom() {
                   value={allowVoteChange}
                   onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
+>>>>>>> .theirs
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
