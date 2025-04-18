@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, ThumbsUp, ThumbsDown, Filter, ArrowRight, Plus } from 'react-feather';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Comment from '../components/Comment';
 
 function DiscussionRoom() {
   // Get room ID from URL params
@@ -149,6 +150,17 @@ function DiscussionRoom() {
     }
   };
 
+  const handleVote = async (commentId, type) => {
+    try {
+      const res = await axios.post(`/api/comments/${commentId}/${type}`);
+      setComments(prev =>
+        prev.map(c => (c._id === commentId ? res.data : c))
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };  
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -277,29 +289,7 @@ function DiscussionRoom() {
               {/* Comment List */}
               <div className="space-y-6">
                 {comments.map(comment => (
-                  <div key={comment.id} className="border-b pb-4">
-                    <div className="flex items-center mb-2">
-                      <span className="font-semibold mr-2">{comment.user}</span>
-                      {comment.tags.map((tag, index) => (
-                        <span key={index} className="bg-gray-200 text-gray-700 text-xs rounded-full px-2 py-1 mr-1">
-                          {tag}
-                        </span>
-                      ))}
-                      <span className="ml-auto text-gray-500 text-sm">
-                        {timeAgo(new Date(comment.timestamp))}
-                      </span>
-                    </div>
-                    <p className="mb-2">{comment.content}</p>
-                    <div className="flex items-center text-gray-500">
-                      <button className="mr-1">
-                        <ThumbsUp size={16} />
-                      </button>
-                      <button className="mr-2">
-                        <ThumbsDown size={16} />
-                      </button>
-                      <span>{comment.votes} votes</span>
-                    </div>
-                  </div>
+                  <Comment key={comment._id} comment={comment} onVote={handleVote} />
                 ))}
               </div>
             </div>

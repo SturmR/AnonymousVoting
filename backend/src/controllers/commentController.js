@@ -52,3 +52,40 @@ exports.deleteComment = async (req, res, next) => {
     next(err);
   }
 };
+
+// Upvote comment
+exports.upvoteComment = async (req, res, next) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    if (typeof comment.votes !== 'number') {
+      comment.votes = 0; // fallback in case field was missing
+    }
+
+    comment.votes += 1;
+    await comment.save();
+    res.json(comment);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Downvote comment
+exports.downvoteComment = async (req, res, next) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+
+    if (typeof comment.votes !== 'number') {
+      comment.votes = 0;
+    }
+
+    comment.votes -= 1;
+    await comment.save();
+    res.json(comment);
+  } catch (err) {
+    next(err);
+  }
+};
+
