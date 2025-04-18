@@ -8,6 +8,7 @@ function DiscussionRoom() {
   // Get room ID from URL params
   const { roomId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Parse user token from URL if present
   const queryParams = new URLSearchParams(location.search);
