@@ -21,6 +21,7 @@ function CreateRoom() {
   const [allowVoteChange, setAllowVoteChange] = useState('Select');
   const [minVotes, setMinVotes] = useState('Select');
   const [maxVotes, setMaxVotes] = useState('Select');
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
 
   // State to track which date picker is currently showing
@@ -31,6 +32,8 @@ function CreateRoom() {
 
   // Handle create button click
   const handleCreate = () => {
+    setAttemptedSubmit(true);
+    
     if (isQuestionEmpty) {
       setFormError('Please enter a discussion question.');
       setShowModal(false);
@@ -323,7 +326,9 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to submit new Options?</label>
                 <select
-                  className="border rounded px-3 py-1 w-24"
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && allowSubmitOptions === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}                
                   value={allowSubmitOptions}
                   onChange={(e) => setAllowSubmitOptions(e.target.value)}
                 >
@@ -336,7 +341,10 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
                 <select
-                  className="border rounded px-3 py-1 w-24"
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
                   value={allowVoteChange}
                   onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
@@ -349,7 +357,10 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
                 <select
-                  className="border rounded px-3 py-1 w-24"
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && minVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
                   value={minVotes}
                   onChange={(e) => setMinVotes(e.target.value)}
                 >
@@ -366,7 +377,10 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
                 <select
-                  className="border rounded px-3 py-1 w-24"
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && maxVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
                   value={maxVotes}
                   onChange={(e) => setMaxVotes(e.target.value)}
                 >
