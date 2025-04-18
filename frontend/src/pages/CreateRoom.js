@@ -10,6 +10,7 @@ function CreateRoom() {
   const [options, setOptions] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [emails, setEmails] = useState([]);
+  const [formError, setFormError] = useState('');
 
   const [discussionStartDate, setDiscussionStartDate] = useState(null);
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
@@ -25,7 +26,22 @@ function CreateRoom() {
 
   // Handle create button click
   const handleCreate = () => {
-    setShowModal(true);
+    if (isQuestionEmpty) {
+      setFormError('Please enter a discussion question.');
+      setShowModal(false);
+    } else if (isAnyDateMissing) {
+      setFormError('Please fill in all required date and time fields.');
+      setShowModal(false);
+    } else if (isDiscussionTimeInvalid || isVotingTimeInvalid) {
+      setFormError('Please make sure all end times are after their respective start times.');
+      setShowModal(false);
+    } else if (isChangeVoteTimeInvalid) {
+      setFormError('Please make sure vote change time limit is in between voting start time and voting end time.');
+      setShowModal(false);
+    } else {
+      setFormError('');
+      setShowModal(true);
+    }
   };
   
   // Handle confirmation
@@ -174,8 +190,23 @@ function CreateRoom() {
     }
   };
 
-  const isDiscussionTimeInvalid = discussionEndDate && discussionStartDate && discussionEndDate < discussionStartDate;
-  const isVotingTimeInvalid = votingEndDate && votingStartDate && votingEndDate < votingStartDate;
+  const isDiscussionTimeInvalid =
+    discussionStartDate && discussionEndDate && discussionEndDate <= discussionStartDate;
+
+  const isVotingTimeInvalid =
+    votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
+
+  const isChangeVoteTimeInvalid =
+    changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate;
+
+  const isAnyDateMissing =
+    !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || !changeVoteUntilDate;
+
+  const isQuestionEmpty = question.trim() === '';
+
+  const isEmailsInvalid = emails.length === 0;
+
+  const isFormValid = !isDiscussionTimeInvalid && !isVotingTimeInvalid && !isAnyDateMissing && !isQuestionEmpty && !isEmailsInvalid;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -319,6 +350,9 @@ function CreateRoom() {
                 onChange={setChangeVoteUntilDate}
                 id="change-vote-until"
               />
+              {isChangeVoteTimeInvalid && (
+                <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
+              )}
 
             </div>
           </div>
@@ -357,11 +391,14 @@ function CreateRoom() {
                 Preview
               </button>
               <button 
-              className="w-full bg-[#004999] text-white rounded py-2 font-medium"
-              onClick={handleCreate}
+                className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80]"
+                onClick={handleCreate}
               >
                 Create
               </button>
+              {formError && (
+                <p className="text-red-500 text-sm mt-1">{formError}</p>
+              )}
             </div>
           </div>
         </div>
