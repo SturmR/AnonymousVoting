@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Search, ThumbsUp, ThumbsDown, Filter, ArrowRight, Plus } from 'react-feather';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Comment from '../components/Comment';
 
 function DiscussionRoom() {
   // Get room ID from URL params
   const { roomId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Parse user token from URL if present
   const queryParams = new URLSearchParams(location.search);
@@ -20,6 +22,9 @@ function DiscussionRoom() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [searchComment, setSearchComment] = useState('');
+  const [selectedOptionId, setSelectedOptionId] = useState('');
+  const [selectedOpinion, setSelectedOpinion] = useState('');
+  const [sortType, setSortType] = useState('Recent'); // or 'Most Votes', 'Oldest'
   
   // Poll info
   const [pollInfo, setPollInfo] = useState(null);
@@ -68,6 +73,7 @@ function DiscussionRoom() {
   
   // Update time remaining calculations
   const updateTimeRemaining = () => {
+    if (!pollInfo) return;
     const now = new Date();
     
     // Discussion time remaining
@@ -124,14 +130,19 @@ function DiscussionRoom() {
       const res = await axios.post('/api/comments', {
         room: roomId,
         content: newComment,
-        user: nickname
+        user: nickname,
+        relatedOption: selectedOptionId || undefined,
+        isPro: selectedOpinion === 'pro',
+        isCon: selectedOpinion === 'con'
       });
       setComments(prev => [...prev, res.data]);
       setNewComment('');
-    } catch(e) {
+      setSelectedOptionId('');
+      setSelectedOpinion('');
+    } catch (e) {
       console.error(e);
     }
-  };
+  };  
   
   
   // Calculate time ago for comments
@@ -147,6 +158,17 @@ function DiscussionRoom() {
       return `${diffInDays} days ago`;
     }
   };
+
+  const handleVote = async (commentId, type) => {
+    try {
+      const res = await axios.post(`/api/comments/${commentId}/${type}`);
+      setComments(prev =>
+        prev.map(c => (c._id === commentId ? res.data : c))
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };  
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -184,7 +206,7 @@ function DiscussionRoom() {
               
               <div className="flex flex-wrap gap-2 mb-4">
                 {options.map(o => (
-                  <span key={o_id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
+                  <span key={o._id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
                     {o.content} ({o.numberOfVotes})
                   </span>
                 ))}
@@ -231,17 +253,33 @@ function DiscussionRoom() {
               
               <div className="flex mb-4">
                 <div className="mr-2">
-                  <select className="border rounded p-2">
-                    <option>Option</option>
+                  <select
+                    className="border rounded p-2"
+                    value={selectedOptionId}
+                    onChange={(e) => setSelectedOptionId(e.target.value)}
+                  >
+                    <option value="">Option</option>
+                    {options.map((opt) => (
+                      <option key={opt._id} value={opt._id}>{opt.content}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <select className="border rounded p-2">
-                    <option>Opinion</option>
+                  <select
+                    className="border rounded p-2"
+                    value={selectedOpinion}
+                    onChange={(e) => setSelectedOpinion(e.target.value)}
+                  >
+                    <option value="">Opinion</option>
+                    <option value="pro">Pro</option>
+                    <option value="con">Con</option>
                   </select>
                 </div>
                 <div className="ml-auto">
-                  <button className="bg-[#3395ff] text-white rounded px-4 py-2">
+                  <button 
+                    className="bg-[#3395ff] text-white rounded px-4 py-2"
+                    onClick={addComment}  
+                  >
                     Post
                   </button>
                 </div>
@@ -262,41 +300,38 @@ function DiscussionRoom() {
                 </div>
                 <div className="flex items-center">
                   <Filter size={18} className="mr-1" />
-                  <select className="border rounded p-2">
-                    <option>Recent</option>
-                    <option>Most Votes</option>
-                    <option>Oldest</option>
+                  <select
+                    className="border rounded p-2"
+                    value={sortType}
+                    onChange={(e) => setSortType(e.target.value)}
+                  >
+                    <option value="Recent">Recent</option>
+                    <option value="Most Votes">Most Votes</option>
+                    <option value="Oldest">Oldest</option>
                   </select>
                 </div>
               </div>
               
               {/* Comment List */}
               <div className="space-y-6">
-                {comments.map(comment => (
-                  <div key={comment.id} className="border-b pb-4">
-                    <div className="flex items-center mb-2">
-                      <span className="font-semibold mr-2">{comment.user}</span>
-                      {comment.tags.map((tag, index) => (
-                        <span key={index} className="bg-gray-200 text-gray-700 text-xs rounded-full px-2 py-1 mr-1">
-                          {tag}
-                        </span>
-                      ))}
-                      <span className="ml-auto text-gray-500 text-sm">
-                        {timeAgo(comment.timestamp)}
-                      </span>
-                    </div>
-                    <p className="mb-2">{comment.content}</p>
-                    <div className="flex items-center text-gray-500">
-                      <button className="mr-1">
-                        <ThumbsUp size={16} />
-                      </button>
-                      <button className="mr-2">
-                        <ThumbsDown size={16} />
-                      </button>
-                      <span>{comment.votes} votes</span>
-                    </div>
-                  </div>
-                ))}
+              {[...comments]
+                .filter((c) =>
+                  c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
+                  c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase())
+                )
+                .sort((a, b) => {
+                  if (sortType === 'Recent') {
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                  } else if (sortType === 'Oldest') {
+                    return new Date(a.createdAt) - new Date(b.createdAt);
+                  } else if (sortType === 'Most Votes') {
+                    return (b.votes || 0) - (a.votes || 0);
+                  }
+                  return 0;
+                })
+                .map((comment) => (
+                  <Comment key={comment._id} comment={comment} onVote={handleVote} />
+              ))}
               </div>
             </div>
           </div>
