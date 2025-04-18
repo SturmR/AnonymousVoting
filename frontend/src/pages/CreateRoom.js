@@ -17,6 +17,11 @@ function CreateRoom() {
   const [votingStartDate, setVotingStartDate] = useState(null);
   const [votingEndDate, setVotingEndDate] = useState(null);
   const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
+  const [allowSubmitOptions, setAllowSubmitOptions] = useState('Select');
+  const [allowVoteChange, setAllowVoteChange] = useState('Select');
+  const [minVotes, setMinVotes] = useState('Select');
+  const [maxVotes, setMaxVotes] = useState('Select');
+
 
   // State to track which date picker is currently showing
   const [activeDatePicker, setActiveDatePicker] = useState(null);
@@ -38,6 +43,9 @@ function CreateRoom() {
     } else if (isChangeVoteTimeInvalid) {
       setFormError('Please make sure vote change time limit is in between voting start time and voting end time.');
       setShowModal(false);
+    } else if (isDropdownInvalid) {
+      setFormError('Please make sure to select all settings.');
+      setShowModal(false);  
     } else {
       setFormError('');
       setShowModal(true);
@@ -197,7 +205,7 @@ function CreateRoom() {
     votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
 
   const isChangeVoteTimeInvalid =
-    changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate;
+    votingStartDate && changeVoteUntilDate && votingEndDate && changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate;
 
   const isAnyDateMissing =
     !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || !changeVoteUntilDate;
@@ -206,7 +214,19 @@ function CreateRoom() {
 
   const isEmailsInvalid = emails.length === 0;
 
-  const isFormValid = !isDiscussionTimeInvalid && !isVotingTimeInvalid && !isAnyDateMissing && !isQuestionEmpty && !isEmailsInvalid;
+  const isDropdownInvalid =
+    allowSubmitOptions === 'Select' ||
+    allowVoteChange === 'Select' ||
+    minVotes === 'Select' ||
+    maxVotes === 'Select'; 
+
+  const isFormValid = 
+    !isDiscussionTimeInvalid && 
+    !isVotingTimeInvalid && 
+    !isAnyDateMissing && 
+    !isQuestionEmpty && 
+    !isEmailsInvalid && 
+    !isDropdownInvalid;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -302,7 +322,11 @@ function CreateRoom() {
               {/* Dropdown Selectors */}
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to submit new Options?</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className="border rounded px-3 py-1 w-24"
+                  value={allowSubmitOptions}
+                  onChange={(e) => setAllowSubmitOptions(e.target.value)}
+                >
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -311,7 +335,11 @@ function CreateRoom() {
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className="border rounded px-3 py-1 w-24"
+                  value={allowVoteChange}
+                  onChange={(e) => setAllowVoteChange(e.target.value)}
+                >
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -320,27 +348,35 @@ function CreateRoom() {
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className="border rounded px-3 py-1 w-24"
+                  value={minVotes}
+                  onChange={(e) => setMinVotes(e.target.value)}
+                >
                   <option>Select</option>
+                  <option value="no-limit">No limit</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
                   <option value="5">5</option>
-                  <option value="no-limit">No limit</option>
                 </select>
               </div>
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
-                <select className="border rounded px-3 py-1 w-24">
+                <select
+                  className="border rounded px-3 py-1 w-24"
+                  value={maxVotes}
+                  onChange={(e) => setMaxVotes(e.target.value)}
+                >
                   <option>Select</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
                   <option value="5">5</option>
-                  <option value="no-limit">No limit</option>
+                  <option value="no-limit">No Limit</option>
                 </select>
               </div>
 
