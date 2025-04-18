@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -12,6 +13,7 @@ function CreateRoom() {
   const [newEmail, setNewEmail] = useState('');
   const [emails, setEmails] = useState([]);
   const [formError, setFormError] = useState('');
+  const navigate = useNavigate();
 
   const [discussionStartDate, setDiscussionStartDate] = useState(null);
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
@@ -20,8 +22,8 @@ function CreateRoom() {
   const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
   const [allowSubmitOptions, setAllowSubmitOptions] = useState('Select');
   const [allowVoteChange, setAllowVoteChange] = useState('Select');
-  const [minVotes, setMinVotes] = useState('Select');
-  const [maxVotes, setMaxVotes] = useState('Select');
+  const [minOptionsPerVote, setMinOptionsPerVote] = useState('Select');
+  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState('Select');
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
 
@@ -30,10 +32,6 @@ function CreateRoom() {
     
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [canAddOption, setCanAddOption] = useState(true);
-  const [canEditVote, setCanEditVote] = useState(true);
-  const [minOptionsPerVote, setMinOptionsPerVote] = useState(1);
-  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState(1);
 
   // Handle create button click
   const handleCreate = () => {
@@ -71,15 +69,30 @@ function CreateRoom() {
         discussionEnd:   discussionEndDate,
         votingStart:     votingStartDate,
         votingEnd:       votingEndDate,
-        canAddOption,
-        canEditVote,
+        canAddOption:  allowSubmitOptions === 'yes',
+        canEditVote:   allowVoteChange    === 'yes',
         editVoteUntil:   changeVoteUntilDate,
-        minOptionsPerVote,
-        maxOptionsPerVote,
-        userList:        emails     // assuming backend will create User docs
+        minOptionsPerVote: 
+          minOptionsPerVote === 'no-limit'
+            ? 0
+            : parseInt(minOptionsPerVote, 10),
+        maxOptionsPerVote:
+          maxOptionsPerVote === 'no-limit'
+            ? 0
+            : parseInt(maxOptionsPerVote, 10),
+        userList:        emails,     // assuming backend will create User docs
+        optionList: options.map(text => ({ content: text })),
       };
   
       const { data: room } = await axios.post('/api/rooms', payload);
+      const createdOptions = await Promise.all(
+        options.map(text =>
+          axios.post('/api/options', { room: room._id, content: text })
+        )
+      );
+      await axios.put(`/api/rooms/${room._id}`, {
+        optionList: createdOptions.map(r => r.data._id)
+      });
       setShowModal(false);
       // Redirect into the new room
       navigate(`/rooms/${room._id}`);
@@ -246,8 +259,8 @@ function CreateRoom() {
   const isDropdownInvalid =
     allowSubmitOptions === 'Select' ||
     allowVoteChange === 'Select' ||
-    minVotes === 'Select' ||
-    maxVotes === 'Select'; 
+    minOptionsPerVote === 'Select' ||
+    maxOptionsPerVote === 'Select'; 
 
   const isFormValid = 
     !isDiscussionTimeInvalid && 
@@ -256,6 +269,7 @@ function CreateRoom() {
     !isQuestionEmpty && 
     !isEmailsInvalid && 
     !isDropdownInvalid;
+    
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -367,15 +381,6 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
                 <select
-<<<<<<< .mine
-                  value={canEditVote ? 'yes' : 'no'}
-                  onChange={e => setCanEditVote(e.target.value === 'yes')}>
-
-
-
-
-
-=======
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
                     attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -383,7 +388,6 @@ function CreateRoom() {
                   value={allowVoteChange}
                   onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
->>>>>>> .theirs
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
@@ -394,11 +398,11 @@ function CreateRoom() {
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                    attemptedSubmit && minVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
                 
-                  value={minVotes}
-                  onChange={(e) => setMinVotes(e.target.value)}
+                  value={minOptionsPerVote}
+                  onChange={(e) => setMinOptionsPerVote(e.target.value)}
                 >
                   <option>Select</option>
                   <option value="no-limit">No limit</option>
@@ -414,11 +418,11 @@ function CreateRoom() {
                 <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                    attemptedSubmit && maxVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
                 
-                  value={maxVotes}
-                  onChange={(e) => setMaxVotes(e.target.value)}
+                  value={maxOptionsPerVote}
+                  onChange={(e) => setMaxOptionsPerVote(e.target.value)}
                 >
                   <option>Select</option>
                   <option value="1">1</option>
