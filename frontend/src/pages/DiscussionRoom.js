@@ -23,6 +23,7 @@ function DiscussionRoom() {
   const [searchComment, setSearchComment] = useState('');
   const [selectedOptionId, setSelectedOptionId] = useState('');
   const [selectedOpinion, setSelectedOpinion] = useState('');
+  const [sortType, setSortType] = useState('Recent'); // or 'Most Votes', 'Oldest'
   
   // Poll info
   const [pollInfo, setPollInfo] = useState(null);
@@ -298,19 +299,38 @@ function DiscussionRoom() {
                 </div>
                 <div className="flex items-center">
                   <Filter size={18} className="mr-1" />
-                  <select className="border rounded p-2">
-                    <option>Recent</option>
-                    <option>Most Votes</option>
-                    <option>Oldest</option>
+                  <select
+                    className="border rounded p-2"
+                    value={sortType}
+                    onChange={(e) => setSortType(e.target.value)}
+                  >
+                    <option value="Recent">Recent</option>
+                    <option value="Most Votes">Most Votes</option>
+                    <option value="Oldest">Oldest</option>
                   </select>
                 </div>
               </div>
               
               {/* Comment List */}
               <div className="space-y-6">
-                {comments.map(comment => (
+              {[...comments]
+                .filter((c) =>
+                  c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
+                  c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase())
+                )
+                .sort((a, b) => {
+                  if (sortType === 'Recent') {
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                  } else if (sortType === 'Oldest') {
+                    return new Date(a.createdAt) - new Date(b.createdAt);
+                  } else if (sortType === 'Most Votes') {
+                    return (b.votes || 0) - (a.votes || 0);
+                  }
+                  return 0;
+                })
+                .map((comment) => (
                   <Comment key={comment._id} comment={comment} onVote={handleVote} />
-                ))}
+              ))}
               </div>
             </div>
           </div>
