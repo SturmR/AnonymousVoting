@@ -10,6 +10,7 @@ const CommentSchema = new mongoose.Schema({
     relatedOption: { type: mongoose.Schema.Types.ObjectId, ref: 'Option' },
     isPro: { type: Boolean, default: false },
     isCon: { type: Boolean, default: false },
+    votes: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model('Comment', CommentSchema);

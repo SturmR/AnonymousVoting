@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -12,6 +13,7 @@ function CreateRoom() {
   const [newEmail, setNewEmail] = useState('');
   const [emails, setEmails] = useState([]);
   const [formError, setFormError] = useState('');
+  const navigate = useNavigate();
 
   const [discussionStartDate, setDiscussionStartDate] = useState(null);
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
@@ -20,8 +22,8 @@ function CreateRoom() {
   const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
   const [allowSubmitOptions, setAllowSubmitOptions] = useState('Select');
   const [allowVoteChange, setAllowVoteChange] = useState('Select');
-  const [minVotes, setMinVotes] = useState('Select');
-  const [maxVotes, setMaxVotes] = useState('Select');
+  const [minOptionsPerVote, setMinOptionsPerVote] = useState('Select');
+  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState('Select');
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
 
@@ -30,10 +32,6 @@ function CreateRoom() {
     
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [canAddOption, setCanAddOption] = useState(true);
-  const [canEditVote, setCanEditVote] = useState(true);
-  const [minOptionsPerVote, setMinOptionsPerVote] = useState(1);
-  const [maxOptionsPerVote, setMaxOptionsPerVote] = useState(1);
 
   // Handle create button click
   const handleCreate = () => {
@@ -62,6 +60,7 @@ function CreateRoom() {
   
   // Handle confirmation: create the Room via backend, then navigate into it
   const handleConfirm = async () => {
+    console.log("🔥 handleConfirm fired!", { discussionStartDate, votingStartDate });
     try {
       const payload = {
         title: question,
@@ -71,21 +70,42 @@ function CreateRoom() {
         discussionEnd:   discussionEndDate,
         votingStart:     votingStartDate,
         votingEnd:       votingEndDate,
-        canAddOption,
-        canEditVote,
+        canAddOption:  allowSubmitOptions === 'yes',
+        canEditVote:   allowVoteChange    === 'yes',
         editVoteUntil:   changeVoteUntilDate,
-        minOptionsPerVote,
-        maxOptionsPerVote,
-        userList:        emails     // assuming backend will create User docs
+        minOptionsPerVote: 
+          minOptionsPerVote === 'no-limit'
+            ? 0
+            : parseInt(minOptionsPerVote, 10),
+        maxOptionsPerVote:
+          maxOptionsPerVote === 'no-limit'
+            ? 0
+            : parseInt(maxOptionsPerVote, 10),
+        userList:        emails,     // assuming backend will create User docs
       };
   
-      const { data: room } = await axios.post('/api/rooms', payload);
+      const { data: room } = await axios.post('http://localhost:5000/api/rooms', payload);
+      // 2) Create each option tied to that room
+      const createOps = options.map(text =>
+          axios.post("http://localhost:5000/api/options", { room:   room._id, content:text})
+        );
+        const results = await Promise.all(createOps);
+
+        // 3) Collect the new Option IDs
+        const optionIds = results.map(r => r.data._id);
+
+        // 4) Patch the room’s optionList
+        await axios.put(`http://localhost:5000/api/rooms/${room._id}`, {
+          optionList: optionIds
+        });
+
       setShowModal(false);
       // Redirect into the new room
       navigate(`/rooms/${room._id}`);
     } catch (err) {
       console.error('Room creation failed:', err);
-      alert('Could not create room. Try again.');
+      alert('Could not create room. Try again.\n' +
+        (err.response?.data?.message || err.message));
     }
   };
   
@@ -227,6 +247,7 @@ function CreateRoom() {
     }
   };
 
+  // TODO: check these!!!
   const isDiscussionTimeInvalid =
     discussionStartDate && discussionEndDate && discussionEndDate <= discussionStartDate;
 
@@ -234,7 +255,7 @@ function CreateRoom() {
     votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
 
   const isChangeVoteTimeInvalid =
-    votingStartDate && changeVoteUntilDate && votingEndDate && changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate;
+    (votingStartDate && changeVoteUntilDate && votingEndDate && changeVoteUntilDate <= votingStartDate) || (votingEndDate < changeVoteUntilDate);
 
   const isAnyDateMissing =
     !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || !changeVoteUntilDate;
@@ -246,8 +267,8 @@ function CreateRoom() {
   const isDropdownInvalid =
     allowSubmitOptions === 'Select' ||
     allowVoteChange === 'Select' ||
-    minVotes === 'Select' ||
-    maxVotes === 'Select'; 
+    minOptionsPerVote === 'Select' ||
+    maxOptionsPerVote === 'Select'; 
 
   const isFormValid = 
     !isDiscussionTimeInvalid && 
@@ -256,6 +277,7 @@ function CreateRoom() {
     !isQuestionEmpty && 
     !isEmailsInvalid && 
     !isDropdownInvalid;
+    
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -312,7 +334,6 @@ function CreateRoom() {
             </div>
 
             {/* Date and Time Selectors */}
-            {/* Date and Time Selectors */}
             <div className="space-y-4 relative">
               <DateTimePicker 
                 label="Discussion starts at:"
@@ -367,38 +388,37 @@ function CreateRoom() {
               <div className="flex items-center">
                 <label className="w-64 font-medium">Allow Users to change their votes?</label>
                 <select
-<<<<<<< .mine
-                  value={canEditVote ? 'yes' : 'no'}
-                  onChange={e => setCanEditVote(e.target.value === 'yes')}>
-
-
-
-
-
-=======
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
                     attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                
+                  }`}                
                   value={allowVoteChange}
                   onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
->>>>>>> .theirs
                   <option>Select</option>
                   <option value="yes">Yes</option>
                   <option value="no">No</option>
                 </select>
               </div>
 
+              <DateTimePicker 
+                label="Allow users to change their vote until:"
+                selectedDate={changeVoteUntilDate}
+                onChange={setChangeVoteUntilDate}
+                id="change-vote-until"
+              />
+              {isChangeVoteTimeInvalid && (
+                <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
+              )}
+
               <div className="flex items-center">
                 <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                    attemptedSubmit && minVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
                 
-                  value={minVotes}
-                  onChange={(e) => setMinVotes(e.target.value)}
+                  value={minOptionsPerVote}
+                  onChange={(e) => setMinOptionsPerVote(e.target.value)}
                 >
                   <option>Select</option>
                   <option value="no-limit">No limit</option>
@@ -414,11 +434,11 @@ function CreateRoom() {
                 <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                    attemptedSubmit && maxVotes === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
                   }`}
                 
-                  value={maxVotes}
-                  onChange={(e) => setMaxVotes(e.target.value)}
+                  value={maxOptionsPerVote}
+                  onChange={(e) => setMaxOptionsPerVote(e.target.value)}
                 >
                   <option>Select</option>
                   <option value="1">1</option>
@@ -430,15 +450,7 @@ function CreateRoom() {
                 </select>
               </div>
 
-              <DateTimePicker 
-                label="Allow users to change their vote until:"
-                selectedDate={changeVoteUntilDate}
-                onChange={setChangeVoteUntilDate}
-                id="change-vote-until"
-              />
-              {isChangeVoteTimeInvalid && (
-                <p className="text-red-500 text-sm">Vote change time limit must be in between voting start time and voting end time.</p>
-              )}
+              
 
             </div>
           </div>
