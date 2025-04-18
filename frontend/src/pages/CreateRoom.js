@@ -60,6 +60,8 @@ function CreateRoom() {
   
   // Handle confirmation: create the Room via backend, then navigate into it
   const handleConfirm = async () => {
+    console.log("🔥 handleConfirm fired!", { discussionStartDate, votingStartDate });
+    debugger;
     try {
       const payload = {
         title: question,
@@ -81,24 +83,30 @@ function CreateRoom() {
             ? 0
             : parseInt(maxOptionsPerVote, 10),
         userList:        emails,     // assuming backend will create User docs
-        optionList: options.map(text => ({ content: text })),
       };
   
-      const { data: room } = await axios.post('/api/rooms', payload);
-      const createdOptions = await Promise.all(
-        options.map(text =>
-          axios.post('/api/options', { room: room._id, content: text })
-        )
-      );
-      await axios.put(`/api/rooms/${room._id}`, {
-        optionList: createdOptions.map(r => r.data._id)
-      });
+      const { data: room } = await axios.post('http://localhost:5000/api/rooms', payload);
+      // 2) Create each option tied to that room
+      const createOps = options.map(text =>
+          axios.post("http://localhost:5000/api/options", { room:   room._id, content:text})
+        );
+        const results = await Promise.all(createOps);
+
+        // 3) Collect the new Option IDs
+        const optionIds = results.map(r => r.data._id);
+
+        // 4) Patch the room’s optionList
+        await axios.put(`http://localhost:5000/api/rooms/${room._id}`, {
+          optionList: optionIds
+        });
+
       setShowModal(false);
       // Redirect into the new room
       navigate(`/rooms/${room._id}`);
     } catch (err) {
       console.error('Room creation failed:', err);
-      alert('Could not create room. Try again.');
+      alert('Could not create room. Try again.\n' +
+        (err.response?.data?.message || err.message));
     }
   };
   
