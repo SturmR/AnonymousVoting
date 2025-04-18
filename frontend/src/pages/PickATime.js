@@ -276,6 +276,7 @@ function PickATime() {
   const isFormValid = !isQuestionEmpty && 
                       !isAnyDateMissing && 
                       !isVotingTimeInvalid && 
+                      !isEmailsInvalid && 
                       !isChangeVoteTimeInvalid && 
                       !isDropdownInvalid;
 
