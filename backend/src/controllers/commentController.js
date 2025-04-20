@@ -3,7 +3,11 @@ const Comment = require("../models/Comment");
 // Get all comments
 exports.getAllComments = async (req, res, next) => {
   try {
-    const comments = await Comment.find();
+    const filter = {};
+    if (req.query.room) filter.room = req.query.room;
+    const comments = await Comment
+      .find(filter)
+      .populate('relatedOption', 'content'); 
     res.json(comments);
   } catch (err) {
     next(err);

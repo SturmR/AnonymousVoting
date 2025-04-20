@@ -3,7 +3,9 @@ const Option = require("../models/Option");
 // Get all options
 exports.getAllOptions = async (req, res, next) => {
   try {
-    const options = await Option.find();
+    const filter = {};
+    if (req.query.room) filter.room = req.query.room;  // <-- filter by room
+    const options = await Option.find(filter);
     res.json(options);
   } catch (err) {
     next(err);
