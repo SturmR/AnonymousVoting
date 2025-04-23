@@ -5,6 +5,8 @@ import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function CreateRoom() {
   // State for the form
   const [question, setQuestion] = useState('');
@@ -84,20 +86,18 @@ function CreateRoom() {
         userList:        emails,     // assuming backend will create User docs
       };
   
-      const { data: room } = await axios.post('http://localhost:5000/api/rooms', payload);
+      const { data: room } = await axios.post('/api/rooms', payload);
       // 2) Create each option tied to that room
       const createOps = options.map(text =>
-          axios.post("http://localhost:5000/api/options", { room:   room._id, content:text})
+          axios.post("/api/options", { room: room._id, content:text})
         );
-        const results = await Promise.all(createOps);
+      const results = await Promise.all(createOps);
 
-        // 3) Collect the new Option IDs
-        const optionIds = results.map(r => r.data._id);
+      // 3) Collect the new Option IDs
+      const optionIds = results.map(r => r.data._id);
 
-        // 4) Patch the room’s optionList
-        await axios.put(`http://localhost:5000/api/rooms/${room._id}`, {
-          optionList: optionIds
-        });
+      // 4) Patch the room’s optionList
+      await axios.put(`/api/rooms/${room._id}`, {optionList: optionIds});
 
       setShowModal(false);
       // Redirect into the new room

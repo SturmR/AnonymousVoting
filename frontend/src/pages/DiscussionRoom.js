@@ -32,7 +32,35 @@ function DiscussionRoom() {
   // Calculate time remaining
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
   const [votingTimeRemaining, setVotingTimeRemaining] = useState({ hasStarted: false, hasEnded: false });
+
+  const [room,    setRoom]    = useState(null);
   
+  // Update time remaining calculations
+  const updateTimeRemaining = () => {
+    if (!pollInfo) return;
+    const now = new Date();
+    
+    // Discussion time remaining
+    const discussionDiff = pollInfo.discussionEnds - now;
+    if (discussionDiff > 0) {
+      const days = Math.floor(discussionDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((discussionDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((discussionDiff % (1000 * 60 * 60)) / (1000 * 60));
+      setTimeRemaining({ days, hours, minutes });
+    } else {
+      setTimeRemaining({ days: 0, hours: 0, minutes: 0 });
+    }
+    
+    // Voting time status
+    const votingStartDiff = pollInfo.votingBegins - now;
+    const votingEndDiff = pollInfo.votingEnds - now;
+    
+    setVotingTimeRemaining({
+      hasStarted: votingStartDiff <= 0,
+      hasEnded: votingEndDiff <= 0
+    });
+  };
+
   // Generate or retrieve nickname on component mount
   useEffect(() => {
     const fetchData = async () => {
@@ -70,32 +98,10 @@ function DiscussionRoom() {
     updateTimeRemaining();
     return () => clearInterval(timer);
   }, [roomId]);
-  
-  // Update time remaining calculations
-  const updateTimeRemaining = () => {
-    if (!pollInfo) return;
-    const now = new Date();
-    
-    // Discussion time remaining
-    const discussionDiff = pollInfo.discussionEnds - now;
-    if (discussionDiff > 0) {
-      const days = Math.floor(discussionDiff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((discussionDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((discussionDiff % (1000 * 60 * 60)) / (1000 * 60));
-      setTimeRemaining({ days, hours, minutes });
-    } else {
-      setTimeRemaining({ days: 0, hours: 0, minutes: 0 });
-    }
-    
-    // Voting time status
-    const votingStartDiff = pollInfo.votingBegins - now;
-    const votingEndDiff = pollInfo.votingEnds - now;
-    
-    setVotingTimeRemaining({
-      hasStarted: votingStartDiff <= 0,
-      hasEnded: votingEndDiff <= 0
-    });
-  };
+
+  if (!room) {
+    return <div>Loading...</div>
+  }
   
   // Format date to display
   const formatDate = (date) => {
