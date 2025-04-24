@@ -36,6 +36,10 @@ function CreateRoom() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
 
+  // 1) Utility to generate a random username like "user8342"
+  const generateRandomUsername = () =>
+    'user' + Math.floor(1000 + Math.random() * 9000);
+
   // Handle create button click
   const handleCreate = () => {
     setAttemptedSubmit(true);
@@ -63,50 +67,69 @@ function CreateRoom() {
   
   // Handle confirmation: create the Room via backend, then navigate into it
   const handleConfirm = async () => {
-    console.log("🔥 handleConfirm fired!", { discussionStartDate, votingStartDate });
     try {
-      const payload = {
+      // ────────────────────────────────────────────────────
+      // A) Create the room first (without users/options)
+      const roomPayload = {
         title: question,
-        description: '',            // or add a description field in state
+        description: '',
         type: 'DiscussAndVote',
         discussionStart: discussionStartDate,
         discussionEnd:   discussionEndDate,
         votingStart:     votingStartDate,
         votingEnd:       votingEndDate,
-        canAddOption:  allowSubmitOptions === 'yes',
-        canEditVote:   allowVoteChange    === 'yes',
+        canAddOption:    allowSubmitOptions === 'yes',
+        canEditVote:     allowVoteChange    === 'yes',
         editVoteUntil:   changeVoteUntilDate,
-        minOptionsPerVote: 
-          minOptionsPerVote === 'no-limit'
-            ? 0
-            : parseInt(minOptionsPerVote, 10),
-        maxOptionsPerVote:
-          maxOptionsPerVote === 'no-limit'
-            ? 0
-            : parseInt(maxOptionsPerVote, 10),
-        userList:        emails,     // assuming backend will create User docs
+        minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
+        maxOptionsPerVote: maxOptionsPerVote === 'no-limit' ? 0 : parseInt(maxOptionsPerVote, 10),
+        // userList & optionList come later
       };
+      const { data: room } = await axios.post('/api/rooms', roomPayload);
   
-      const { data: room } = await axios.post('/api/rooms', payload);
-      // 2) Create each option tied to that room
-      const createOps = options.map(text =>
-          axios.post("/api/options", { room: room._id, content:text})
-        );
-      const results = await Promise.all(createOps);
-
-      // 3) Collect the new Option IDs
-      const optionIds = results.map(r => r.data._id);
-
-      // 4) Patch the room’s optionList
-      await axios.put(`/api/rooms/${room._id}`, {optionList: optionIds});
-
+      // ────────────────────────────────────────────────────
+      // B) Create one anonymous User per email
+      const userCreates = emails.map(email => {
+        const username = generateRandomUsername();
+        return axios.post('/api/users', {
+          room:     room._id,
+          username,
+          email,
+        });
+      });
+      const userResults = await Promise.all(userCreates);
+      const userIds     = userResults.map(r => r.data._id);
+  
+      // ────────────────────────────────────────────────────
+      // C) Patch room’s userList
+      await axios.put(`/api/rooms/${room._id}`, {
+        userList: userIds
+      });
+  
+      // ────────────────────────────────────────────────────
+      // D) Create each discussion option
+      const optionCreates = options.map(text =>
+        axios.post('/api/options', {
+          room:    room._id,
+          content: text
+        })
+      );
+      const optionResults = await Promise.all(optionCreates);
+      const optionIds     = optionResults.map(r => r.data._id);
+  
+      // ────────────────────────────────────────────────────
+      // E) Patch room’s optionList
+      await axios.put(`/api/rooms/${room._id}`, {
+        optionList: optionIds
+      });
+  
+      // Done — close modal & navigate into the new room
       setShowModal(false);
-      // Redirect into the new room
       navigate(`/rooms/${room._id}`);
     } catch (err) {
-      console.error('Room creation failed:', err);
-      alert('Could not create room. Try again.\n' +
-        (err.response?.data?.message || err.message));
+      console.error('Creation failed:', err);
+      alert('Could not create room/users/options: '
+        + (err.response?.data?.message || err.message));
     }
   };
   
