@@ -14,6 +14,7 @@ function CreateRoom() {
   const [options, setOptions] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [emails, setEmails] = useState([]);
+  const [showEmailInput, setShowEmailInput] = useState(false);
   const [formError, setFormError] = useState('');
   const navigate = useNavigate();
 
@@ -241,10 +242,10 @@ function CreateRoom() {
 
   // Add a new email
   const addEmail = () => {
-    if (newEmail.trim() && !emails.includes(newEmail)) {
-      setEmails([...emails, newEmail]);
-      setNewEmail('');
-    }
+    const email = newEmail.trim();
+    if (!email) return;
+    setEmails([...emails, email]);
+    setNewEmail('');
   };
 
   // TODO: check these!!!
@@ -468,20 +469,27 @@ function CreateRoom() {
               <button className="flex items-center border rounded-full px-4 py-1 text-sm">
                 <Plus size={16} className="mr-1" /> Add Voters' emails via .csv file...
               </button>
-              <button className="flex items-center border rounded-full px-4 py-1 text-sm">
+              <button 
+                onClick={() => setShowEmailInput(true)}
+                className="flex items-center border rounded-full px-4 py-1 text-sm">
                 <Plus size={16} className="mr-1" /> Add Voters' emails one by one...
               </button>
-            </div>
-
-            <div className="mb-6">
-              <input
-                type="email"
-                className="w-full border rounded p-2 mb-2 text-sm"
-                placeholder="Submit your email to receive the anonymous host link..."
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addEmail()}
-              />
+              {showEmailInput && (
+                <input
+                  type="email"
+                  placeholder="Type email and press Enter"
+                  value={newEmail}
+                  onChange={e => setNewEmail(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addEmail();
+                    }
+                  }}
+                  autoFocus
+                  className="w-full border rounded px-3 py-2 mb-4"
+                />
+              )}
             </div>
 
             <div className="space-y-3">
