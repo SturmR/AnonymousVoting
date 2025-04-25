@@ -12,7 +12,15 @@ function DiscussionRoom() {
   
   // Parse user token from URL if present
   const queryParams = new URLSearchParams(location.search);
-  const userToken = queryParams.get('token');
+  const userId = queryParams.get('user');
+
+  const [username, setUsername] = useState('');
+  useEffect(() => {
+    if (!userId) return;
+    axios.get(`/api/users/${userId}`)
+         .then(res => setUsername(res.data.username))
+         .catch(console.error);
+  }, [userId]);
   
   // State for user data
   const [nickname, setNickname] = useState('');
@@ -60,6 +68,17 @@ function DiscussionRoom() {
       hasEnded: votingEndDiff <= 0
     });
   };
+
+  useEffect(() => {
+    axios.get(`/api/rooms/${roomId}`).then(r => setRoom(r.data));
+    axios.get(`/api/options?room=${roomId}`).then(r => setOptions(r.data));
+    // fetch comments for this room
+    axios.get(`/api/comments?room=${roomId}`).then(r => setComments(r.data));
+  }, [roomId]);
+
+  useEffect(() => {
+    axios.get(`/api/comments?room=${roomId}`).then(r => setComments(r.data));
+  }, [roomId, /* you could also depend on a flag toggled by handleComment */]);
 
   // Generate or retrieve nickname on component mount
   useEffect(() => {
