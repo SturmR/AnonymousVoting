@@ -4,18 +4,41 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Comment from '../components/Comment';
 
+// Set default base URL for axios if not already set elsewhere
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function DiscussionRoom() {
   // Get room ID from URL params
   const { roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Parse user token from URL if present
+
+  // Parse user ID from URL query parameter
   const queryParams = new URLSearchParams(location.search);
-  const userToken = queryParams.get('token');
-  
-  // State for user data
-  const [nickname, setNickname] = useState('');
+  const userId = queryParams.get('user'); // Use this ID
+
+  // State for user data - fetch username based on userId
+  const [username, setUsername] = useState('Loading...'); // Show loading state initially
+  useEffect(() => {
+    if (!userId) {
+      setUsername('Anonymous / No User ID'); // Handle case where user ID is missing
+      console.warn("No user ID found in URL query parameter '?user='");
+      return;
+    }
+    axios.get(`/api/users/${userId}`)
+         .then(res => {
+            setUsername(res.data.username); // Use the fetched username
+            // Store nickname locally if needed, but use userId for backend interactions
+            const key = `room_${roomId}_nickname_for_${userId}`;
+            localStorage.setItem(key, res.data.username);
+         })
+         .catch(err => {
+            console.error("Error fetching username:", err);
+            setUsername('Unknown User'); // Show error state
+         });
+  }, [userId, roomId]);
+
+  // State for other room data
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState([]);
   const [newOption, setNewOption] = useState('');
@@ -24,58 +47,18 @@ function DiscussionRoom() {
   const [searchComment, setSearchComment] = useState('');
   const [selectedOptionId, setSelectedOptionId] = useState('');
   const [selectedOpinion, setSelectedOpinion] = useState('');
-  const [sortType, setSortType] = useState('Recent'); // or 'Most Votes', 'Oldest'
-  
-  // Poll info
+  const [sortType, setSortType] = useState('Recent');
   const [pollInfo, setPollInfo] = useState(null);
-  
-  // Calculate time remaining
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
   const [votingTimeRemaining, setVotingTimeRemaining] = useState({ hasStarted: false, hasEnded: false });
-  
-  // Generate or retrieve nickname on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: room } = await axios.get(`/api/rooms/${roomId}`);
-        setQuestion(room.title);
-        setPollInfo({
-          canAddOptions: room.canAddOption,
-          votingBegins: new Date(room.votingStart),
-          votingEnds:    new Date(room.votingEnd),
-          votesEditableUntil: new Date(room.editVoteUntil),
-          discussionEnds:     new Date(room.discussionEnd),
-        });  
-        const [optRes, comRes] = await Promise.all([
-          axios.get(`/api/options?room=${roomId}`),
-          axios.get(`/api/comments?room=${roomId}`)
-        ]);
-        setOptions(optRes.data);
-        setComments(comRes.data);
-      } catch (err) {
-        console.error('Error fetching:', err);
-      }
-    };
-    fetchData();
-    // nickname persistence
-    const key = `room_${roomId}_nickname`;
-    const stored = localStorage.getItem(key);
-    if (stored) setNickname(stored);
-    else {
-      const newNick = `user${1000 + Math.floor(Math.random()*9000)}`;
-      setNickname(newNick);
-      localStorage.setItem(key, newNick);
-    }  
-    const timer = setInterval(updateTimeRemaining, 60000);
-    updateTimeRemaining();
-    return () => clearInterval(timer);
-  }, [roomId]);
-  
+  const [room,    setRoom]    = useState(null);
+  const [userToken, setUserToken] = useState(null); // Placeholder if needed later
+
   // Update time remaining calculations
   const updateTimeRemaining = () => {
     if (!pollInfo) return;
     const now = new Date();
-    
+
     // Discussion time remaining
     const discussionDiff = pollInfo.discussionEnds - now;
     if (discussionDiff > 0) {
@@ -86,32 +69,61 @@ function DiscussionRoom() {
     } else {
       setTimeRemaining({ days: 0, hours: 0, minutes: 0 });
     }
-    
+
     // Voting time status
     const votingStartDiff = pollInfo.votingBegins - now;
     const votingEndDiff = pollInfo.votingEnds - now;
-    
+
     setVotingTimeRemaining({
       hasStarted: votingStartDiff <= 0,
       hasEnded: votingEndDiff <= 0
     });
   };
-  
-  // Format date to display
-  const formatDate = (date) => {
-    return date.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }).replace(/\./g, '') + ', ' + 
-    date.toLocaleTimeString('de-DE', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
+
+
+  // Fetch initial data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: roomData } = await axios.get(`/api/rooms/${roomId}`);
+        setRoom(roomData); // Store full room data
+        setQuestion(roomData.title);
+        setPollInfo({
+          canAddOptions: roomData.canAddOption,
+          votingBegins: new Date(roomData.votingStart),
+          votingEnds:    new Date(roomData.votingEnd),
+          votesEditableUntil: new Date(roomData.editVoteUntil),
+          discussionEnds:     new Date(roomData.discussionEnd),
+        });
+        const [optRes, comRes] = await Promise.all([
+          axios.get(`/api/options?room=${roomId}`),
+          axios.get(`/api/comments?room=${roomId}`)
+        ]);
+        setOptions(optRes.data);
+        setComments(comRes.data);
+        updateTimeRemaining(); // Initial calculation
+      } catch (err) {
+        console.error('Error fetching initial room data:', err);
+        // Handle error display for the user here
+      }
+    };
+    fetchData();
+    const timer = setInterval(updateTimeRemaining, 60000); // Update every minute
+    return () => clearInterval(timer); // Cleanup timer on unmount
+  }, [roomId]);
+
+
+  // Fetch comments (can be triggered again if needed)
+  const fetchComments = () => {
+     axios.get(`/api/comments?room=${roomId}`).then(r => setComments(r.data)).catch(console.error);
+  }
+  // useEffect(() => {
+  //   fetchComments();
+  // }, [roomId]); // Fetch initially
+
+  // Add Option
   const addOption = async () => {
-    if (!newOption.trim() || !pollInfo.canAddOptions) return;
+    if (!newOption.trim() || !pollInfo?.canAddOptions) return;
     try {
       const res = await axios.post('/api/options', {
         room: roomId,
@@ -120,55 +132,71 @@ function DiscussionRoom() {
       setOptions(prev => [...prev, res.data]);
       setNewOption('');
     } catch(e) {
-      console.error(e);
+      console.error("Error adding option:", e);
     }
   };
-  
+
+  // Add Comment
   const addComment = async () => {
+    // *** MODIFICATION START ***
+    // Check if userId exists (it should if the user followed the correct link)
+    if (!userId) {
+        alert('Cannot post comment: User ID is missing. Please ensure you accessed this page via the link provided upon room creation.');
+        return;
+    }
     if (!newComment.trim()) return;
+    // *** MODIFICATION END ***
+
     try {
       const res = await axios.post('/api/comments', {
         room: roomId,
         content: newComment,
-        user: nickname,
+        // *** MODIFICATION: Send the actual userId, not the nickname ***
+        user: userId,
+        // *** END MODIFICATION ***
         relatedOption: selectedOptionId || undefined,
         isPro: selectedOpinion === 'pro',
         isCon: selectedOpinion === 'con'
       });
-      setComments(prev => [...prev, res.data]);
+      // Optimistically add the comment, or refetch
+      // setComments(prev => [...prev, res.data]); // Optimistic update
+      fetchComments(); // Refetch to ensure data consistency including populated user
       setNewComment('');
       setSelectedOptionId('');
       setSelectedOpinion('');
     } catch (e) {
-      console.error(e);
+      console.error("Error adding comment:", e);
+      alert('Failed to post comment: ' + (e.response?.data?.message || e.message));
     }
-  };  
-  
-  
-  // Calculate time ago for comments
-  const timeAgo = (date) => {
-    const now = new Date();
-    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
-    if (diffInDays < 1) {
-      return 'today';
-    } else if (diffInDays === 1) {
-      return 'yesterday';
-    } else {
-      return `${diffInDays} days ago`;
-    }
+  };
+
+  // Format date to display
+  const formatDate = (date) => {
+    if (!(date instanceof Date) || isNaN(date)) return 'Invalid Date'; // Add check for valid date
+    return date.toLocaleDateString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    }).replace(/\./g, '/') + ', ' +
+    date.toLocaleTimeString('de-DE', {
+      hour: '2-digit', minute: '2-digit'
+    });
   };
 
   const handleVote = async (commentId, type) => {
     try {
       const res = await axios.post(`/api/comments/${commentId}/${type}`);
+      // Update the specific comment in the state
       setComments(prev =>
-        prev.map(c => (c._id === commentId ? res.data : c))
+        prev.map(c => (c._id === commentId ? { ...c, votes: res.data.votes } : c))
       );
     } catch (err) {
-      console.error(err);
+      console.error("Error voting on comment:", err);
+      alert('Failed to vote: ' + (err.response?.data?.message || err.message));
     }
-  };  
+  };
+
+  if (!room || !pollInfo) {
+    return <div className="p-8">Loading room details...</div>
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -194,24 +222,24 @@ function DiscussionRoom() {
                 {pollInfo.canAddOptions && (
                   <div className="flex items-center">
                     <span className="mr-2">Add Option</span>
-                    <button 
+                    <button
                       className="bg-[#3395ff] text-white rounded-full w-6 h-6 flex items-center justify-center"
-                      onClick={() => document.getElementById('option-input').focus()}
+                      onClick={() => document.getElementById('option-input')?.focus()}
                     >
                       <Plus size={16} />
                     </button>
                   </div>
                 )}
               </div>
-              
+
               <div className="flex flex-wrap gap-2 mb-4">
                 {options.map(o => (
                   <span key={o._id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
-                    {o.content} ({o.numberOfVotes})
+                    {o.content} ({o.numberOfVotes ?? 0}) {/* Default votes to 0 if undefined */}
                   </span>
-                ))}
+                 ))}
               </div>
-              
+
               {pollInfo.canAddOptions && (
                 <div className="flex border rounded">
                   <input
@@ -223,14 +251,14 @@ function DiscussionRoom() {
                     onChange={(e) => setNewOption(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && addOption()}
                   />
-                  <button 
+                  <button
                     className="bg-white px-2 flex items-center"
                     onClick={addOption}
                   >
                     <Plus size={16} />
                   </button>
                 </div>
-              )}
+               )}
             </div>
 
             {/* Comments */}
@@ -239,52 +267,54 @@ function DiscussionRoom() {
                 <h3 className="text-xl font-bold">Comments</h3>
                 <span className="text-gray-500">{comments.length} comments</span>
               </div>
-              
+
               <div className="mb-4">
+                 {/* Display fetched username */}
+                 <p className="text-sm text-gray-600 mb-1">Commenting as: {username}</p>
                 <input
                   type="text"
                   className="w-full border rounded p-2 text-gray-500"
-                  placeholder={`Comment as user#${nickname.replace('user', '')}...`}
+                  placeholder={`Write your comment here...`}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addComment()}
-                />
+                 />
               </div>
-              
-              <div className="flex mb-4">
+
+              <div className="flex mb-4 items-center"> {/* Use items-center for vertical alignment */}
                 <div className="mr-2">
                   <select
-                    className="border rounded p-2"
+                    className="border rounded p-2 h-10" // Match button height
                     value={selectedOptionId}
                     onChange={(e) => setSelectedOptionId(e.target.value)}
                   >
-                    <option value="">Option</option>
+                    <option value="">Relate to Option (Optional)</option> {/* Improved placeholder */}
                     {options.map((opt) => (
                       <option key={opt._id} value={opt._id}>{opt.content}</option>
                     ))}
                   </select>
                 </div>
-                <div>
+                <div className="mr-2"> {/* Add margin */}
                   <select
-                    className="border rounded p-2"
+                    className="border rounded p-2 h-10" // Match button height
                     value={selectedOpinion}
                     onChange={(e) => setSelectedOpinion(e.target.value)}
                   >
-                    <option value="">Opinion</option>
+                    <option value="">Opinion (Optional)</option> {/* Improved placeholder */}
                     <option value="pro">Pro</option>
                     <option value="con">Con</option>
                   </select>
                 </div>
                 <div className="ml-auto">
-                  <button 
-                    className="bg-[#3395ff] text-white rounded px-4 py-2"
-                    onClick={addComment}  
+                  <button
+                    className="bg-[#3395ff] text-white rounded px-4 py-2 h-10" // Match select height
+                    onClick={addComment}
                   >
                     Post
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex mb-6">
                 <div className="relative flex-grow mr-2">
                   <input
@@ -311,10 +341,10 @@ function DiscussionRoom() {
                   </select>
                 </div>
               </div>
-              
+
               {/* Comment List */}
               <div className="space-y-6">
-              {[...comments]
+              {[...comments] // Create a new array for sorting
                 .filter((c) =>
                   c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
                   c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase())
@@ -325,12 +355,16 @@ function DiscussionRoom() {
                   } else if (sortType === 'Oldest') {
                     return new Date(a.createdAt) - new Date(b.createdAt);
                   } else if (sortType === 'Most Votes') {
-                    return (b.votes || 0) - (a.votes || 0);
+                    // Ensure votes exist and default to 0 if not
+                    const votesA = a.votes ?? 0;
+                    const votesB = b.votes ?? 0;
+                    return votesB - votesA;
                   }
-                  return 0;
+                  return 0; // Default case
                 })
                 .map((comment) => (
-                  <Comment key={comment._id} comment={comment} onVote={handleVote} />
+                  // Ensure comment has _id before rendering
+                  comment._id ? <Comment key={comment._id} comment={comment} onVote={handleVote} /> : null
               ))}
               </div>
             </div>
@@ -339,46 +373,47 @@ function DiscussionRoom() {
           {/* Right Section - Info */}
           <div className="w-full md:w-1/3 p-8">
             <div className="mb-8">
-              <h3 className="text-xl font-bold mb-2">Welcome, {nickname}</h3>
+              {/* Display fetched username */}
+              <h3 className="text-xl font-bold mb-2">Welcome, {username}</h3>
             </div>
-            
+
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-4">Poll Info:</h3>
-              <p className="mb-2">{pollInfo.canAddOptions ? 'You can add options' : 'Adding options is disabled'}</p>
+              <p className="mb-2">{pollInfo.canAddOptions ? 'Adding options is enabled' : 'Adding options is disabled'}</p>
               <p className="mb-1">Voting begins: {formatDate(pollInfo.votingBegins)}</p>
               <p className="mb-1">Voting ends: {formatDate(pollInfo.votingEnds)}</p>
               <p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)}</p>
             </div>
-            
+
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-2">Time remaining for Discussion:</h3>
               <p className="mb-1">{timeRemaining.days} days</p>
               <p className="mb-1">{timeRemaining.hours} hours</p>
               <p className="mb-4">{timeRemaining.minutes} minutes</p>
             </div>
-            
+
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-2">Time remaining for Voting:</h3>
-              {!votingTimeRemaining.hasStarted ? (
-                <p>Voting hasn't started yet.</p>
-              ) : votingTimeRemaining.hasEnded ? (
-                <p>Voting has ended.</p>
-              ) : (
-                <p>Voting is in progress.</p>
-              )}
+              {!votingTimeRemaining.hasStarted ?
+                ( <p>Voting hasn't started yet.</p> )
+                : votingTimeRemaining.hasEnded ?
+                ( <p>Voting has ended.</p> )
+                : ( <p>Voting is in progress.</p> )
+              }
             </div>
-            
+
             <div>
-            <button onClick={() =>
-              navigate(`/rooms/${roomId}/vote?token=${userToken}`)
-            }>
-              Go to Voting <ArrowRight className="ml-2"/>
-            </button>
-              {/*
-              <button className="flex items-center bg-gray-200 hover:bg-gray-300 rounded px-4 py-2 text-gray-700">
+              <button
+                className={`flex items-center ${
+                  !votingTimeRemaining.hasStarted || votingTimeRemaining.hasEnded
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                } rounded px-4 py-2 w-full justify-center`}
+                disabled={!votingTimeRemaining.hasStarted || votingTimeRemaining.hasEnded}
+                onClick={() => navigate(`/rooms/${roomId}/vote?user=${userId}`)} // Pass userId
+              >
                 Go to Voting <ArrowRight size={16} className="ml-2" />
               </button>
-              */}
             </div>
           </div>
         </div>
