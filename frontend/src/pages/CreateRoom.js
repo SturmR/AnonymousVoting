@@ -76,81 +76,93 @@ function CreateRoom() {
   };
 
   // Handle confirmation: create the Room via backend, then navigate into it
-  const handleConfirm = async () => {
-    setShowModal(false); // Hide confirmation modal first
-    let createdRoomId = null;
-    let createdUserIds = [];
-    let createdUsersData = []; // Store { email, id }
+const handleConfirm = async () => {
+  setShowModal(false);
+  let createdRoomId = null;
 
-    try {
-      // A) Create the room first
-      const roomPayload = {
-        title: question,
-        description: '',
-        type: 'DiscussAndVote',
-        discussionStart: discussionStartDate,
-        discussionEnd:   discussionEndDate,
-        votingStart:     votingStartDate,
-        votingEnd:       votingEndDate,
-        canAddOption:    allowSubmitOptions === 'yes',
-        canEditVote:     allowVoteChange    === 'yes',
-        editVoteUntil:   allowVoteChange === 'yes' ? changeVoteUntilDate : null, // Only send if applicable
-        minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
-        maxOptionsPerVote: maxOptionsPerVote === 'no-limit' ? Number.MAX_SAFE_INTEGER : parseInt(maxOptionsPerVote, 10), // Use a large number for no limit
-      };
-      const { data: room } = await axios.post('/api/rooms', roomPayload);
-      createdRoomId = room._id; // Store room ID
+  try {
+    // A) Create the room
+    const roomPayload = {
+      title: question,
+      description: '',
+      type: 'DiscussAndVote',
+      discussionStart: discussionStartDate,
+      discussionEnd:   discussionEndDate,
+      votingStart:     votingStartDate,
+      votingEnd:       votingEndDate,
+      canAddOption:    allowSubmitOptions === 'yes',
+      canEditVote:     allowVoteChange    === 'yes',
+      editVoteUntil:   allowVoteChange === 'yes' ? changeVoteUntilDate : null,
+      minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
+      maxOptionsPerVote: maxOptionsPerVote === 'no-limit'
+                           ? Number.MAX_SAFE_INTEGER
+                           : parseInt(maxOptionsPerVote, 10),
+    };
+    const { data: room } = await axios.post('/api/rooms', roomPayload);
+    createdRoomId = room._id;
 
-      // B) Create one User per email
-      const userCreates = emails.map(email => {
-        const username = generateRandomUsername();
-        return axios.post('/api/users', {
-          room:     room._id,
-          username,
-          email,
-        });
+    // B) Create the **admin** user
+    const adminUsername = generateRandomUsername();
+    const { data: adminUser } = await axios.post('/api/users', {
+      room:     createdRoomId,
+      username: adminUsername,
+      // you can replace this dummy email with a real one if you collect it
+      email:    `${adminUsername}@example.com`
+    });
+    const adminId = adminUser._id;
+
+    // C) Create each voter user
+    const userCreates = emails.map(email => {
+      const username = generateRandomUsername();
+      return axios.post('/api/users', {
+        room:     createdRoomId,
+        username,
+        email,
       });
-      const userResults = await Promise.all(userCreates);
-      createdUsersData = userResults.map((r, index) => ({ email: emails[index], id: r.data._id }));
-      createdUserIds = createdUsersData.map(u => u.id); // Store user IDs
+    });
+    const userResults = await Promise.all(userCreates);
+    const voterData = userResults.map((r, i) => ({
+      email: emails[i],
+      id:    r.data._id
+    }));
+    const voterIds = voterData.map(u => u.id);
 
-      // C) Patch room’s userList
-      await axios.put(`/api/rooms/${room._id}`, { userList: createdUserIds });
+    // D) Patch room -> userList = [admin, ...voters]
+    await axios.put(`/api/rooms/${createdRoomId}`, {
+      userList: [adminId, ...voterIds]
+    });
 
-      // D) Create each discussion option
-      const optionCreates = options.map(text =>
-        axios.post('/api/options', { room: room._id, content: text })
-      );
-      const optionResults = await Promise.all(optionCreates);
-      const optionIds     = optionResults.map(r => r.data._id);
+    // E) Create each option and patch optionList (unchanged)
+    const optionCreates = options.map(text =>
+      axios.post('/api/options', { room: createdRoomId, content: text })
+    );
+    const optionResults = await Promise.all(optionCreates);
+    const optionIds     = optionResults.map(r => r.data._id);
+    await axios.put(`/api/rooms/${createdRoomId}`, {
+      optionList: optionIds
+    });
 
-      // E) Patch room’s optionList
-      await axios.put(`/api/rooms/${room._id}`, { optionList: optionIds });
+    // F) Generate the admin + voter links
+    const links = [
+      {
+        label: 'Admin Link',
+        url:   `${window.location.origin}/admin/discussion/${createdRoomId}?user=${adminId}`
+      },
+      ...voterData.map(u => ({
+        label: u.email,
+        url:   `${window.location.origin}/rooms/${createdRoomId}?user=${u.id}`
+      }))
+    ];
+    setGeneratedLinks(links);
+    setShowLinksModal(true);
 
-      // *** MODIFICATION START ***
-      // Generate links and show them in a modal instead of navigating
-      const links = createdUsersData.map(user => ({
-        email: user.email,
-        // Construct the URL for DiscussionRoom, including the user ID
-        url: `${window.location.origin}/rooms/${createdRoomId}?user=${user.id}`
-      }));
-      setGeneratedLinks(links);
-      setShowLinksModal(true); // Show the new modal with links
-      console.log("Room created successfully. User links:", links);
-      // navigate(`/rooms/${room._id}`); // Commented out navigation
-      // *** MODIFICATION END ***
+  } catch (err) {
+    console.error('Creation failed:', err);
+    // Optionally roll back partial creations here
+    alert(`Could not create room/users/options: ${err.message}`);
+  }
+};
 
-    } catch (err) {
-      console.error('Creation failed:', err);
-      // Attempt to clean up if room was created but subsequent steps failed
-      if (createdRoomId) {
-        console.warn(`Room ${createdRoomId} created, but subsequent steps failed. Manual cleanup might be needed.`);
-        // Optionally, try to delete the partially created room/users/options here
-      }
-      alert('Could not create room/users/options: '
-        + (err.response?.data?.message || err.message));
-    }
-  };
 
   // Add this function inside your Meeting component
   const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
