@@ -111,7 +111,9 @@ function DiscussionRoom() {
     const timer = setInterval(updateTimeRemaining, 60000); // Update every minute
     return () => clearInterval(timer); // Cleanup timer on unmount
   }, [roomId]);
-
+  useEffect(() => {
+    if (pollInfo) updateTimeRemaining();
+}, [pollInfo]);
 
   // Fetch comments (can be triggered again if needed)
   const fetchComments = () => {
@@ -151,9 +153,7 @@ function DiscussionRoom() {
       const res = await axios.post('/api/comments', {
         room: roomId,
         content: newComment,
-        // *** MODIFICATION: Send the actual userId, not the nickname ***
         user: userId,
-        // *** END MODIFICATION ***
         relatedOption: selectedOptionId || undefined,
         isPro: selectedOpinion === 'pro',
         isCon: selectedOpinion === 'con'
@@ -183,7 +183,7 @@ function DiscussionRoom() {
 
   const handleVote = async (commentId, type) => {
     try {
-      const res = await axios.post(`/api/comments/${commentId}/${type}`);
+      const res = await axios.post(`/api/comments/${commentId}/${type}`, {user: userId});
       // Update the specific comment in the state
       setComments(prev =>
         prev.map(c => (c._id === commentId ? { ...c, votes: res.data.votes } : c))
@@ -219,25 +219,20 @@ function DiscussionRoom() {
             <div className="mb-8">
               <div className="flex items-center mb-4">
                 <h3 className="text-xl font-bold mr-4">Options:</h3>
-                {pollInfo.canAddOptions && (
-                  <div className="flex items-center">
-                    <span className="mr-2">Add Option</span>
-                    <button
-                      className="bg-[#3395ff] text-white rounded-full w-6 h-6 flex items-center justify-center"
-                      onClick={() => document.getElementById('option-input')?.focus()}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
-                {options.map(o => (
-                  <span key={o._id} className="bg-[#3395ff] text-white rounded-full px-3 py-1 flex items-center">
-                    {o.content} ({o.numberOfVotes ?? 0}) {/* Default votes to 0 if undefined */}
+              {options.map(o => (
+                <span key={o._id} className="inline-flex items-center space-x-px bg-white text-[#3395ff] border border-[#3395ff] rounded-full px-3 py-1">
+                  <span>{o.content}</span>
+                  <span className="text-green-500 font-medium">
+                    ({o.numberOfProComments ?? 0})
                   </span>
-                 ))}
+                  <span className="text-red-500 font-medium">
+                    ({o.numberOfConComments ?? 0})
+                  </span>
+                </span>
+              ))}
               </div>
 
               {pollInfo.canAddOptions && (

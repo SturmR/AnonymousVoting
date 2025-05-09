@@ -7,7 +7,8 @@ exports.getAllComments = async (req, res, next) => {
     if (req.query.room) filter.room = req.query.room;
     const comments = await Comment
       .find(filter)
-      .populate('relatedOption', 'content'); 
+      .populate('relatedOption', 'content')
+      .populate('user', 'username');
     res.json(comments);
   } catch (err) {
     next(err);
@@ -67,8 +68,19 @@ exports.upvoteComment = async (req, res, next) => {
       comment.votes = 0; // fallback in case field was missing
     }
 
-    comment.votes += 1;
-    await comment.save();
+    const userId = req.body.user;        // ← grab the user ID from the request body
+    if (!comment.upvotedBy.includes(userId)) {
+      // remove prior downvote if any
+      const di = comment.downvotedBy.indexOf(userId);
+      if (di > -1) {
+        comment.downvotedBy.splice(di, 1);
+        comment.votes += 1;             // undo that downvote
+      }
+      // record this upvote
+      comment.upvotedBy.push(userId);
+      comment.votes += 1;
+      await comment.save();
+    }
     res.json(comment);
   } catch (err) {
     next(err);
@@ -85,8 +97,19 @@ exports.downvoteComment = async (req, res, next) => {
       comment.votes = 0;
     }
 
-    comment.votes -= 1;
-    await comment.save();
+    const userId = req.body.user;        // ← grab the user ID from the request body
+    if (!comment.downvotedBy.includes(userId)) {
+      // remove prior downvote if any
+      const di = comment.upvotedBy.indexOf(userId);
+      if (di > -1) {
+        comment.upvotedBy.splice(di, 1);
+        comment.votes -= 1;             // undo that downvote
+      }
+      // record this upvote
+      comment.downvotedBy.push(userId);
+      comment.votes -= 1;
+      await comment.save();
+    }
     res.json(comment);
   } catch (err) {
     next(err);
