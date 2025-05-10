@@ -1,10 +1,16 @@
 const Comment = require("../models/Comment");
+const Option  = require("../models/Option");
 
 // Get all comments
 exports.getAllComments = async (req, res, next) => {
   try {
     const filter = {};
     if (req.query.room) filter.room = req.query.room;
+    if (req.query.relatedOption) filter.relatedOption = req.query.relatedOption;
+    if (req.query.user) filter.user = req.query.user;
+    if (req.query.isWatchlisted) filter.isWatchlisted = req.query.isWatchlisted;
+    if (req.query.isPro) filter.isPro = req.query.isPro;
+    if (req.query.isCon) filter.isCon = req.query.isCon;    
     const comments = await Comment
       .find(filter)
       .populate('relatedOption', 'content')
@@ -19,6 +25,18 @@ exports.getAllComments = async (req, res, next) => {
 exports.createComment = async (req, res, next) => {
   try {
     const comment = await Comment.create(req.body);
+    if (comment.relatedOption) {
+      const inc = {};
+      if (comment.isPro) inc.numberOfProComments = 1;
+      if (comment.isCon) inc.numberOfConComments = 1;
+      if (Object.keys(inc).length > 0) {
+        await Option.findByIdAndUpdate(
+          comment.relatedOption,
+          { $inc: inc },
+          { new: true }
+        );
+      }
+    }
     res.status(201).json(comment);
   } catch (err) {
     next(err);

@@ -133,11 +133,11 @@ function DiscussionVotingPage() {
     
     try {
       const existingVote = await axios.get(`/api/votes?room=${roomId}&user=${userId}`);
-
+      console.log(userId);
       if (existingVote.data.length > 0) {
         await axios.delete(`/api/votes/${existingVote.data[0]._id}`);
+        console.log('removed votes: ', existingVote.data[0]._id);
       }
-      console.log('removed votes: ', existingVote.data[0]._id);
       await axios.post('/api/votes', {
         room: roomId,
         optionList: selectedOptions,

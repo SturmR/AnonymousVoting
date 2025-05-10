@@ -11,6 +11,8 @@ const CommentSchema = new mongoose.Schema({
     isPro: { type: Boolean, default: false },
     isCon: { type: Boolean, default: false },
     votes: { type: Number, default: 0 },
+    upvotedBy: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default:[] }, // Array of User IDs who upvoted
+    downvotedBy: { type: [mongoose.Schema.Types.ObjectId], ref: 'User',  default:[] }, // Array of User IDs who downvoted
 });
 
 module.exports = mongoose.model('Comment', CommentSchema);
