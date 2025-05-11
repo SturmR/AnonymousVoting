@@ -26,11 +26,7 @@ function AdminDiscussionPage() {
   const [newWatchlistUser, setNewWatchlistUser] = useState('');
 
   // State for watchlist activity (keeping this for now)
-  const [watchlistActivity, setWatchlistActivity] = useState([
-    { user: 'user#4191', action: 'wants to add Option "Baby Blue"' },
-    { user: 'user#4635', action: 'wants to comment "I believe green would be better"' },
-    { user: 'user#4586', action: 'wants to comment "Well lets first agree that we need to change"' }
-  ]);
+  const [watchlistActivity, setWatchlistActivity] = useState([]);
 
   // State for date/time pickers
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
@@ -51,6 +47,8 @@ function AdminDiscussionPage() {
   const [selectedOptionId, setSelectedOptionId] = useState('');
   const [selectedOpinion, setSelectedOpinion] = useState('');
   const [sortType, setSortType] = useState('Recent');
+
+  const [watchlistError, setWatchlistError] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -147,18 +145,45 @@ function AdminDiscussionPage() {
   };
 
   // Add user to watchlist
-  const addToWatchlist = () => {
-    if (newWatchlistUser.trim() && !watchlistedUsers.includes(newWatchlistUser)) {
-      // In a real scenario, you'd likely send this to the backend
-      setWatchlistedUsers([...watchlistedUsers, newWatchlistUser]);
+  const addToWatchlist = async () => {
+    const username = newWatchlistUser.trim();
+    if (!username) return;
+
+    // 1) find that user in this room
+    const user = usersInRoom.find(u => u.username === username);
+    if (!user) {
+      setWatchlistError(`User "${username}" not found in this room.`);
+      return;
+    }
+    if (watchlistedUsers.includes(user._id)) {
+      setWatchlistError(`"${username}" is already on the watchlist.`);
+      return;
+    }
+
+    // 2) build new list & PATCH room.watchlist
+    const updated = [...watchlistedUsers, user._id];
+    try {
+      await axios.put(`/api/rooms/${roomId}`, { watchlist: updated });
+      setWatchlistedUsers(updated);
       setNewWatchlistUser('');
+      setWatchlistError('');
+    } catch (err) {
+      console.error('Failed to update watchlist:', err);
+      setWatchlistError('Server error. Please try again.');
     }
   };
 
+
   // Remove user from watchlist
-  const removeFromWatchlist = (userId) => {
-    // In a real scenario, you'd likely send this to the backend
-    setWatchlistedUsers(watchlistedUsers.filter(u => u !== userId));
+  const removeFromWatchlist = async (userIdToRemove) => {
+    const updated = watchlistedUsers.filter(id => id !== userIdToRemove);
+    try {
+      await axios.put(`/api/rooms/${roomId}`, { watchlist: updated });
+      setWatchlistedUsers(updated);
+    } catch (err) {
+      console.error('Failed to remove from watchlist:', err);
+      // you could show an error here if you like
+    }
   };
 
   // Handle date/time changes
@@ -184,26 +209,23 @@ function AdminDiscussionPage() {
   // Update room settings
   const updateRoomSettings = async () => {
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch(`/api/rooms/${roomId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          discussionEndDate,
-          votingStartDate,
-          votingEndDate,
-          allowNewOptions: allowNewOptions === 'yes',
-          allowVoteChange: allowVoteChange === 'yes',
-          changeVoteUntil: changeVoteUntilDate,
-        }),
-      });
-      if (!response.ok) {
-        console.error('Failed to update room settings');
-      }
-    } catch (error) {
-      console.error('Error updating room settings:', error);
+      const payload = {
+        // match your backend property names exactly:
+        discussionEnd: discussionEndDate ? discussionEndDate.toISOString() : null,
+        votingStart:   votingStartDate   ? votingStartDate.toISOString()   : null,
+        votingEnd:     votingEndDate     ? votingEndDate.toISOString()     : null,
+        editVoteUntil: changeVoteUntilDate ? changeVoteUntilDate.toISOString() : null,
+        canAddOption:  allowNewOptions === 'yes',
+        canEditVote:   allowVoteChange   === 'yes'
+      };
+
+      await axios.put(`/api/rooms/${roomId}`, payload);
+
+      // Optionally give feedback
+      alert('Room settings updated successfully.');
+    } catch (err) {
+      console.error('Failed to update room settings:', err);
+      alert('Could not update room settings. See console for details.');
     }
   };
 
@@ -360,14 +382,6 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Users who haven't voted */}
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-bold">Users who have not voted yet: {usersNotVotedCount}</h3>
-              <button className="text-yellow-500 border border-yellow-500 rounded px-4 py-2">
-                Send them a reminder e-mail
-              </button>
             </div>
 
             {/* Date and Time Selectors */}
@@ -531,23 +545,33 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
           <div className="w-full md:w-1/3 p-8">
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-4">Users:</h3>
-              <ul className="list-disc pl-5 mb-6">
-                {usersInRoom.map((user) => (
-                  <li key={user._id}>{user.email}</li>
-                ))}
-              </ul>
+                <ul className="list-disc pl-5 mb-6">
+                  {usersInRoom.map(user => {
+                    if (user._id === userId) {
+                      // Prefer username if you have it; otherwise take email before @
+                      const name = user.username 
+                        ? user.username 
+                        : user.email.split('@')[0];
+                      return <li key={user._id}>You ({name})</li>;
+                    }
+                    return <li key={user._id}>{user.email}</li>;
+                  })}
+                </ul>
             </div>
 
             {/* Watchlist Management */}
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-4">Manage Watchlist:</h3>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {watchlistedUsers.map((userId) => {
-                  const user = usersInRoom.find(u => u._id === userId);
+              <div className="flex flex-wrap gap-2 mb-2">
+                {watchlistedUsers.map(id => {
+                  const user = usersInRoom.find(u => u._id === id);
                   return user ? (
-                    <div key={userId} className="bg-red-200 text-red-700 rounded-full px-3 py-1 flex items-center">
-                      {user.email} {/* Or some other identifier */}
-                      <button className="ml-2" onClick={() => removeFromWatchlist(userId)}>
+                    <div key={id}
+                        className="bg-red-200 text-red-700 rounded-full px-3 py-1 flex items-center">
+                      {user.username}
+                      <button
+                        className="ml-2"
+                        onClick={() => removeFromWatchlist(id)}>
                         <X size={14} />
                       </button>
                     </div>
@@ -555,19 +579,24 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
                 })}
               </div>
 
-              <div className="flex items-center mb-6">
+              <div className="flex items-center mb-1">
                 <input
                   type="text"
-                  placeholder="Add User ID to Watchlist"
+                  placeholder="Enter username..."
                   className="border rounded px-3 py-1 text-sm flex-grow mr-2"
                   value={newWatchlistUser}
-                  onChange={(e) => setNewWatchlistUser(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addToWatchlist()}
+                  onChange={e => setNewWatchlistUser(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && addToWatchlist()}
                 />
-                <button onClick={addToWatchlist} className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">
+                <button
+                  onClick={addToWatchlist}
+                  className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">
                   <Plus size={14} />
                 </button>
               </div>
+              {watchlistError && (
+                <p className="text-red-500 text-sm mb-4">{watchlistError}</p>
+              )}
             </div>
 
             {/* Watchlist Activity */}
