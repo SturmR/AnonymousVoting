@@ -88,11 +88,13 @@ function DiscussionVotingPage() {
           discussionBegins: new Date(roomData.discussionStart),
           discussionEnds:     new Date(roomData.discussionEnd),
         });
-        const [optRes, comRes] = await Promise.all([
+        const [optRes, comRes, voteRes] = await Promise.all([
           axios.get(`/api/options?room=${roomId}`),
-          axios.get(`/api/comments?room=${roomId}`)
+          axios.get(`/api/comments?room=${roomId}`),
+          axios.get(`/api/votes?room=${roomId}&user=${userId}`)
         ]);
         setOptions(optRes.data);
+        setHasVoted(voteRes.data.length > 0);
         updateVotingTimeRemaining(); // Initial calculation
       } catch (err) {
         console.error('Error fetching initial room data:', err);
@@ -133,7 +135,6 @@ function DiscussionVotingPage() {
     
     try {
       const existingVote = await axios.get(`/api/votes?room=${roomId}&user=${userId}`);
-      console.log(userId);
       if (existingVote.data.length > 0) {
         await axios.delete(`/api/votes/${existingVote.data[0]._id}`);
         console.log('removed votes: ', existingVote.data[0]._id);
