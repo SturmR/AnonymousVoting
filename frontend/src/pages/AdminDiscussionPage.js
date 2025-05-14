@@ -230,7 +230,7 @@ function AdminDiscussionPage() {
   };
 
   // Date/Time picker component (no changes needed here, the issue might be CSS related)
-const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
+  const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
     // Function to filter available times to 10-minute intervals (XX:X0)
     const filterTime = (time) => {
       const minutes = time.getMinutes();
@@ -303,7 +303,6 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
     );
   };
 
-
   // Calculate users who haven't voted (requires knowing who has voted, adjust API accordingly)
   const usersNotVotedCount = usersInRoom.length; // Placeholder - you'll need to filter based on voting status
 
@@ -317,6 +316,21 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
     if (!newComment.trim()) return;
     if (!userId) {
       alert('No user ID found in URL. Please add `?user=<yourId>` to the query.');
+      return;
+    }
+
+    if (watchlistedUsers.includes(userId)) {
+      const activity = {
+        id:             Date.now(),
+        user:           userId,
+        content:        newComment,
+        relatedOption:  selectedOptionId,
+        opinion:        selectedOpinion
+      };
+      setWatchlistActivity(prev => [...prev, activity]);
+      setNewComment('');
+      setSelectedOptionId('');
+      setSelectedOpinion('');
       return;
     }
 
@@ -337,6 +351,30 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
       console.error('Error posting comment:', e);
       alert('Failed to post comment: ' + (e.response?.data?.message || e.message));
     }
+  };
+
+  const handleApprove = async (activity) => {
+  try {
+    // 1) actually post the comment now
+    await axios.post('/api/comments', {
+      room:           roomId,
+      content:        activity.content,
+      user:           activity.user,
+      relatedOption:  activity.relatedOption || undefined,
+      isPro:          activity.opinion === 'pro',
+      isCon:          activity.opinion === 'con'
+    });
+  } catch (e) {
+    console.error('Approve failed:', e);
+    alert('Could not approve comment.');
+    return;
+  }
+  // 2) remove from queue
+  setWatchlistActivity(watchlistActivity.filter(a => a.id !== activity.id));
+  };
+
+  const handleReject = (id) => {
+    setWatchlistActivity(watchlistActivity.filter(a => a.id !== id));
   };
 
   return (
@@ -600,14 +638,39 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
             </div>
 
             {/* Watchlist Activity */}
-            <div>
+            <div className="mb-8">
               <h3 className="text-xl font-bold mb-4">Review Watchlist Activity:</h3>
-              <div className="space-y-2">
-                {watchlistActivity.map((activity, index) => (
-                  <div key={index} className="border border-blue-500 text-blue-500 rounded-full px-4 py-2 text-sm">
-                    {activity.user} {activity.action}
-                  </div>
-                ))}
+              <div className="space-y-4">
+                {watchlistActivity.map(activity => {
+                  const user = usersInRoom.find(u => u._id === activity.user);
+                  const name = user?.username || user?.email.split('@')[0] || activity.user;
+                  return (
+                    <div key={activity.id}
+                        className="border p-4 rounded flex items-start justify-between">
+                      <div>
+                        <p>
+                          <strong>{name}</strong> wants to comment:
+                          <span className="italic"> "{activity.content}"</span>
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleApprove(activity)}
+                          className="px-3 py-1 bg-green-500 text-white rounded">
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(activity.id)}
+                          className="px-3 py-1 bg-red-500 text-white rounded">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {watchlistActivity.length === 0 && (
+                  <p className="text-gray-500">No pending comments.</p>
+                )}
               </div>
             </div>
           </div>
