@@ -40,10 +40,16 @@ export default function Comment({ comment, onVote }) {
       <p className="mb-2">{comment.content}</p>
 
       <div className="flex items-center text-gray-500">
-        <button className="mr-1" onClick={() => onVote(comment._id, 'upvote')}>
+        <button
+          onClick={() => onVote(comment._id, 'upvote')}
+          className={`mr-2 ${comment.upvoted ? 'text-blue-500' : 'text-gray-500'}`}
+        >
           <ThumbsUp size={16} />
         </button>
-        <button className="mr-2" onClick={() => onVote(comment._id, 'downvote')}>
+        <button
+          onClick={() => onVote(comment._id, 'downvote')}
+          className={`mr-2 ${comment.downvoted ? 'text-blue-500' : 'text-gray-500'}`}
+        >
           <ThumbsDown size={16} />
         </button>
         <span>{comment.votes ?? 0} votes</span>

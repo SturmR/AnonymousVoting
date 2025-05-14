@@ -3,6 +3,9 @@ import { Search, ThumbsUp, ThumbsDown, Filter, ArrowRight, Plus } from 'react-fe
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Comment from '../components/Comment';
+import classnames from 'classnames'; // Use classnames instead
+
+const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
 // Set default base URL for axios if not already set elsewhere
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -53,6 +56,8 @@ function DiscussionRoom() {
   const [votingTimeRemaining, setVotingTimeRemaining] = useState({ hasStarted: false, hasEnded: false });
   const [room,    setRoom]    = useState(null);
   const [userToken, setUserToken] = useState(null); // Placeholder if needed later
+  const [bgColorIndex, setBgColorIndex] = useState(0);
+
 
   // Update time remaining calculations
   const updateTimeRemaining = () => {
@@ -185,9 +190,32 @@ function DiscussionRoom() {
     try {
       const res = await axios.post(`/api/comments/${commentId}/${type}`, {user: userId});
       // Update the specific comment in the state
-      setComments(prev =>
-        prev.map(c => (c._id === commentId ? { ...c, votes: res.data.votes } : c))
-      );
+      setComments(prev => {
+        return prev.map(c => {
+          if (c._id === commentId) {
+            let newUpvoted = c.upvoted;
+            let newDownvoted = c.downvoted;
+            
+            if (type === 'upvote') {
+              if (c.upvoted) {
+                newUpvoted = false; // Remove upvote
+              } else {
+                newUpvoted = true;
+                newDownvoted = false; // Ensure downvote is removed
+              }
+            } else if (type === 'downvote') {
+              if (c.downvoted) {
+                newDownvoted = false; // Remove downvote
+              } else {
+                newDownvoted = true;
+                newUpvoted = false; // Ensure upvote is removed
+              }
+            }
+            return { ...c, votes: res.data.votes, upvoted: newUpvoted, downvoted: newDownvoted };
+          }
+          return c;
+        }); 
+      });
     } catch (err) {
       console.error("Error voting on comment:", err);
       alert('Failed to vote: ' + (err.response?.data?.message || err.message));
@@ -262,51 +290,52 @@ function DiscussionRoom() {
                 <h3 className="text-xl font-bold">Comments</h3>
                 <span className="text-gray-500">{comments.length} comments</span>
               </div>
-
-              <div className="mb-4">
-                 {/* Display fetched username */}
-                 <p className="text-sm text-gray-600 mb-1">Commenting as: {username}</p>
-                <input
-                  type="text"
-                  className="w-full border rounded p-2 text-gray-500"
-                  placeholder={`Write your comment here...`}
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addComment()}
-                 />
-              </div>
-
-              <div className="flex mb-4 items-center"> {/* Use items-center for vertical alignment */}
-                <div className="mr-2">
-                  <select
-                    className="border rounded p-2 h-10" // Match button height
-                    value={selectedOptionId}
-                    onChange={(e) => setSelectedOptionId(e.target.value)}
-                  >
-                    <option value="">Relate to Option (Optional)</option> {/* Improved placeholder */}
-                    {options.map((opt) => (
-                      <option key={opt._id} value={opt._id}>{opt.content}</option>
-                    ))}
-                  </select>
+              <div className="border border-gray-300 rounded-lg p-4 mb-4 bg-white">
+                <div className="mb-4">
+                  {/* Display fetched username */}
+                  <p className="text-sm text-gray-600 mb-1">Commenting as: {username}</p>
+                  <input
+                    type="text"
+                    className="w-full border rounded p-2 text-gray-500"
+                    placeholder={`Write your comment here...`}
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addComment()}
+                  />
                 </div>
-                <div className="mr-2"> {/* Add margin */}
-                  <select
-                    className="border rounded p-2 h-10" // Match button height
-                    value={selectedOpinion}
-                    onChange={(e) => setSelectedOpinion(e.target.value)}
-                  >
-                    <option value="">Opinion (Optional)</option> {/* Improved placeholder */}
-                    <option value="pro">Pro</option>
-                    <option value="con">Con</option>
-                  </select>
-                </div>
-                <div className="ml-auto">
-                  <button
-                    className="bg-[#3395ff] text-white rounded px-4 py-2 h-10" // Match select height
-                    onClick={addComment}
-                  >
-                    Post
-                  </button>
+
+                <div className="flex mb-4 items-center"> {/* Use items-center for vertical alignment */}
+                  <div className="mr-2">
+                    <select
+                      className="border rounded p-2 h-10" // Match button height
+                      value={selectedOptionId}
+                      onChange={(e) => setSelectedOptionId(e.target.value)}
+                    >
+                      <option value="">Relate to Option (Optional)</option> {/* Improved placeholder */}
+                      {options.map((opt) => (
+                        <option key={opt._id} value={opt._id}>{opt.content}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mr-2"> {/* Add margin */}
+                    <select
+                      className="border rounded p-2 h-10" // Match button height
+                      value={selectedOpinion}
+                      onChange={(e) => setSelectedOpinion(e.target.value)}
+                    >
+                      <option value="">Opinion (Optional)</option> {/* Improved placeholder */}
+                      <option value="pro">Pro</option>
+                      <option value="con">Con</option>
+                    </select>
+                  </div>
+                  <div className="ml-auto">
+                    <button
+                      className="bg-[#3395ff] text-white rounded px-4 py-2 h-10" // Match select height
+                      onClick={addComment}
+                    >
+                      Post
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -375,16 +404,17 @@ function DiscussionRoom() {
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-4">Poll Info:</h3>
               <p className="mb-2">{pollInfo.canAddOptions ? 'Adding options is enabled' : 'Adding options is disabled'}</p>
+              <p className="mb-1">Discussion ends: {formatDate(pollInfo.discussionEnds)}</p>
               <p className="mb-1">Voting begins: {formatDate(pollInfo.votingBegins)}</p>
               <p className="mb-1">Voting ends: {formatDate(pollInfo.votingEnds)}</p>
               <p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)}</p>
             </div>
 
             <div className="mb-8">
-              <h3 className="text-xl font-bold mb-2">Time remaining for Discussion:</h3>
-              <p className="mb-1">{timeRemaining.days} days</p>
-              <p className="mb-1">{timeRemaining.hours} hours</p>
-              <p className="mb-4">{timeRemaining.minutes} minutes</p>
+              <h3 className="text-xl font-bold mb-2">Time remaining for Discussion:</h3>              
+              <p className="mb-1">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.days + 'days': 'Discussion has ended.'}</p>
+              <p className="mb-1">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.hours + 'hours': ''}</p>
+              <p className="mb-4">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.minutes + 'minutes': ''}</p>
             </div>
 
             <div className="mb-8">
@@ -399,15 +429,23 @@ function DiscussionRoom() {
 
             <div>
               <button
-                className={`flex items-center ${
+                className={classnames(
+                  "flex items-center rounded px-4 py-2 w-full justify-center",
                   !votingTimeRemaining.hasStarted || votingTimeRemaining.hasEnded
                     ? 'bg-gray-400 text-white cursor-not-allowed'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                } rounded px-4 py-2 w-full justify-center`}
+                    : 'animate-pulse', // Apply the pulse animation
+                )}
+                style={{
+                  backgroundColor: votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded ? colors[bgColorIndex] : undefined,
+                  color:  votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded ? '#FFFFFF' : '#FFFFFF',
+                  backgroundImage: votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded
+                    ? `linear-gradient(to right, ${colors[bgColorIndex]}, ${colors[(bgColorIndex + 1) % colors.length]})`
+                    : undefined,
+                }}
                 disabled={!votingTimeRemaining.hasStarted || votingTimeRemaining.hasEnded}
                 onClick={() => navigate(`/rooms/${roomId}/vote?user=${userId}`)} // Pass userId
               >
-                Go to Voting <ArrowRight size={16} className="ml-2" />
+                <span>Go to Voting</span> <ArrowRight size={16}  />
               </button>
             </div>
           </div>

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ArrowRight, X } from 'react-feather';
 import axios from 'axios';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import classnames from 'classnames'; // Use classnames instead
+
+const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -39,13 +42,12 @@ function DiscussionVotingPage() {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState([]);
   const [pollInfo, setPollInfo] = useState(null);
-  const [hasVoted, setHasVoted] = useState(false)
+  const [hasVoted, setHasVoted] = useState(false);
   const [discussionTimeRemaining, setDiscussionTimeRemaining] = useState({hasStarted: false, hasEnded: false});
   const [votingTimeRemaining, setVotingTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
   const [room,    setRoom]    = useState(null);
   const [userToken, setUserToken] = useState(null); // Placeholder if needed later
-  
-  // Selected options
+  const [bgColorIndex, setBgColorIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState([]);
   
   // Update time remaining calculations
@@ -95,6 +97,7 @@ function DiscussionVotingPage() {
         ]);
         setOptions(optRes.data);
         setHasVoted(voteRes.data.length > 0);
+        setSelectedOptions(voteRes.data[0]?.optionList || []);
         updateVotingTimeRemaining(); // Initial calculation
       } catch (err) {
         console.error('Error fetching initial room data:', err);
@@ -147,10 +150,7 @@ function DiscussionVotingPage() {
       // Update local options with new vote counts
       const updatedOptions = await axios.get(`/api/options?room=${roomId}`);
       setOptions(updatedOptions.data);
-      
-      // Clear selection
-      setSelectedOptions([]);
-      
+            
       alert('Vote submitted successfully!');
     } catch (err) {
       alert('Failed to submit vote: ' + err.message);
@@ -187,10 +187,9 @@ function DiscussionVotingPage() {
               <div className="flex flex-wrap gap-2">
                 {options.map((option) => {
                   const isSelected = selectedOptions.includes(option._id);
-                  const baseBorder = isSelected ? 'border-[#0066cc]' : 'border-[#3395ff]';
                   return (
                     <button key={option._id} 
-                            className={`inline-flex items-center border ${baseBorder} bg-white rounded-full px-3 py-1 space-x-1 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 ${isSelected ? 'focus:ring-[#0066cc]' : 'focus:ring-[#3395ff]'}`}
+                            className={`inline-flex items-center border rounded-full px-3 py-1 space-x-1 hover:outline-none hover:ring-2 hover:ring-offset-1 ${isSelected ? 'bg-[#8CC8EA]' : 'bg-white'}`}
                             onClick={() => toggleOption(option._id)}>
                       <span>{option.content}</span>
                       <span className="text-green-500 font-medium">
@@ -207,7 +206,7 @@ function DiscussionVotingPage() {
             </div>
           </div>
 
-          {/* Selection Requirements */}
+          {/* Selection Requirements and Submit*/}
           <div className="mt-12">
             <p className="text-lg font-medium">
               You must select at least {room.minOptionsPerVote}, at most {Math.min(room.maxOptionsPerVote,options.length)} Options to submit your Vote.
@@ -217,7 +216,27 @@ function DiscussionVotingPage() {
                 Selected: {selectedOptions.length} option(s)
               </p>
             )}
+            <button 
+            className={classnames(
+              "flex items-center mt-4 rounded px-4 py-2 w-full justify-center",
+              canSubmit 
+                ? 'animate-pulse'
+                : 'bg-gray-400 text-white cursor-not-allowed'
+            )}
+            style={{
+                  backgroundColor: canSubmit ? colors[bgColorIndex] : undefined,
+                  color:  canSubmit ? '#FFFFFF' : '#FFFFFF',
+                  backgroundImage: canSubmit
+                    ? `linear-gradient(to right, ${colors[bgColorIndex]}, ${colors[(bgColorIndex + 1) % colors.length]})`
+                    : undefined,
+                }}
+            disabled={!canSubmit}
+            onClick={handleSubmitVote}
+          >
+            Submit Vote <ArrowRight size={16} className="ml-2" />
+          </button>
           </div>
+          
         </div>
 
         {/* Right Section - Info */}
@@ -262,18 +281,6 @@ function DiscussionVotingPage() {
                 onClick={() => navigate(`/rooms/${roomId}/?user=${userId}`)} // Pass userId
               >
               <ArrowLeft size={16} className="mr-2" /> Go back to Discussion
-            </button>
-            
-            <button 
-              className={`flex items-center ${
-                canSubmit 
-                  ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' 
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              } rounded px-4 py-2 w-full justify-center`}
-              disabled={!canSubmit}
-              onClick={handleSubmitVote}
-            >
-              Submit Vote <ArrowRight size={16} className="ml-2" />
             </button>
           </div>
         </div>

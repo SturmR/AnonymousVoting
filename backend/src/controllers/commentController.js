@@ -10,12 +10,24 @@ exports.getAllComments = async (req, res, next) => {
     if (req.query.user) filter.user = req.query.user;
     if (req.query.isWatchlisted) filter.isWatchlisted = req.query.isWatchlisted;
     if (req.query.isPro) filter.isPro = req.query.isPro;
-    if (req.query.isCon) filter.isCon = req.query.isCon;    
+    if (req.query.isCon) filter.isCon = req.query.isCon;
+    const userId = req.query.userId; // Get userId from query
+
     const comments = await Comment
       .find(filter)
       .populate('relatedOption', 'content')
-      .populate('user', 'username');
-    res.json(comments);
+      .populate('user', 'username')
+      .lean();  // Use lean() to get plain JavaScript objects, which are easier to modify
+
+    // Attach user's vote status to each comment
+    const commentsWithVoteStatus = comments.map(comment => {
+      return {
+        ...comment,
+        upvoted: comment.upvotedBy.includes(userId),
+        downvoted: comment.downvotedBy.includes(userId),
+      };
+    });
+    res.json(commentsWithVoteStatus);
   } catch (err) {
     next(err);
   }
@@ -82,24 +94,25 @@ exports.upvoteComment = async (req, res, next) => {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    if (typeof comment.votes !== 'number') {
-      comment.votes = 0; // fallback in case field was missing
-    }
+    const userId = req.body.user;
+    const upvotedIndex = comment.upvotedBy.indexOf(userId);
+    const downvotedIndex = comment.downvotedBy.indexOf(userId);
 
-    const userId = req.body.user;        // ← grab the user ID from the request body
-    if (!comment.upvotedBy.includes(userId)) {
-      // remove prior downvote if any
-      const di = comment.downvotedBy.indexOf(userId);
-      if (di > -1) {
-        comment.downvotedBy.splice(di, 1);
-        comment.votes += 1;             // undo that downvote
-      }
-      // record this upvote
+    if (upvotedIndex === -1) {
+      // User has not upvoted before
       comment.upvotedBy.push(userId);
       comment.votes += 1;
-      await comment.save();
+      if (downvotedIndex > -1) {
+        comment.downvotedBy.splice(downvotedIndex, 1);
+        comment.votes += 1;  // Correctly adjust votes when removing a downvote
+      }
+    } else {
+      // User has already upvoted; remove the upvote
+      comment.upvotedBy.splice(upvotedIndex, 1);
+      comment.votes -= 1;
     }
-    res.json(comment);
+    await comment.save();
+    res.json({ votes: comment.votes });
   } catch (err) {
     next(err);
   }
@@ -111,26 +124,27 @@ exports.downvoteComment = async (req, res, next) => {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-    if (typeof comment.votes !== 'number') {
-      comment.votes = 0;
-    }
+    const userId = req.body.user;
+    const upvotedIndex = comment.upvotedBy.indexOf(userId);
+    const downvotedIndex = comment.downvotedBy.indexOf(userId);
 
-    const userId = req.body.user;        // ← grab the user ID from the request body
-    if (!comment.downvotedBy.includes(userId)) {
-      // remove prior downvote if any
-      const di = comment.upvotedBy.indexOf(userId);
-      if (di > -1) {
-        comment.upvotedBy.splice(di, 1);
-        comment.votes -= 1;             // undo that downvote
-      }
-      // record this upvote
+    if (downvotedIndex === -1) {
+      // User has not downvoted before
       comment.downvotedBy.push(userId);
       comment.votes -= 1;
-      await comment.save();
+      if (upvotedIndex > -1) {
+        comment.upvotedBy.splice(upvotedIndex, 1);
+        comment.votes -= 1; // Correctly adjust votes when removing an upvote
+      }
+    } else {
+      // User has already downvoted; remove the downvote
+      comment.downvotedBy.splice(downvotedIndex, 1);
+      comment.votes += 1;
     }
-    res.json(comment);
+
+    await comment.save();
+    res.json({ votes: comment.votes });
   } catch (err) {
     next(err);
   }
 };
-

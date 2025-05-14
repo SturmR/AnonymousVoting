@@ -30,7 +30,6 @@ function CreateRoom() {
   const [maxOptionsPerVote, setMaxOptionsPerVote] = useState('Select');
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
-
   // State to track which date picker is currently showing
   const [activeDatePicker, setActiveDatePicker] = useState(null);
   // Modal state
@@ -65,7 +64,6 @@ function CreateRoom() {
     else if (isChangeVoteTimeInvalid) error = 'Please make sure vote change time limit is in between voting start time and voting end time.';
     else if (isDropdownInvalid) error = 'Please make sure to select all settings.';
     else if (isEmailsInvalid) error = 'Please add at least one voter email.';
-
 
     setFormError(error);
     if (!error) {
@@ -162,7 +160,6 @@ const handleConfirm = async () => {
     alert(`Could not create room/users/options: ${err.message}`);
   }
 };
-
 
   // Add this function inside your Meeting component
   const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
@@ -533,7 +530,8 @@ const handleConfirm = async () => {
                   <option value="no-limit">No limit</option>
                   {[...Array(Math.max(1, options.length)).keys()].map(i =>
                      <option key={i+1} value={i+1}>{i+1}</option>
-                   )}
+                   ) // TODO: instead of number of options, do like 10-20~
+                   } 
                 </select>
               </div>
 
@@ -577,7 +575,7 @@ const handleConfirm = async () => {
                   <Plus size={16} className="mr-1" /> Add via .csv file...
                 </button>
                 <button
-                     onClick={() => setShowEmailInput(!showEmailInput)}
+                    onClick={() => setShowEmailInput(!showEmailInput)}
                     className="flex items-center border rounded-full px-4 py-1 text-sm text-gray-600 hover:bg-gray-50">
                   <Plus size={16} className="mr-1" /> Add one by one...
                 </button>

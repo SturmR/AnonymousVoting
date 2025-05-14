@@ -13,3 +13,6 @@ module.exports = {
   },
   plugins: [],
 };
+
+// boun mavisi koyu : #1E4A8B
+// boun mavisi açık : #8CC8EA

@@ -222,10 +222,10 @@ function AdminDiscussionPage() {
       await axios.put(`/api/rooms/${roomId}`, payload);
 
       // Optionally give feedback
-      alert('Room settings updated successfully.');
+      alert('Settings updated successfully.');
     } catch (err) {
-      console.error('Failed to update room settings:', err);
-      alert('Could not update room settings. See console for details.');
+      console.error('Failed to update settings:', err);
+      alert('Could not update settings. See console for details.');
     }
   };
 
@@ -442,7 +442,7 @@ const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
               />
 
               <button onClick={updateRoomSettings} className="bg-blue-500 text-white rounded px-4 py-2">
-                Update Room Settings
+                Update Settings
               </button>
 
               {/* ─────── COMMENTS SECTION ─────── */}
