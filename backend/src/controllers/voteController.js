@@ -14,7 +14,6 @@ exports.getAllVotes = async (req, res, next) => {
     if (user) {
       filter.user = user;
     }
-    console.log("Filter:", filter);
     const votes = await Vote.find(filter);
     res.json(votes);
   } catch (err) {

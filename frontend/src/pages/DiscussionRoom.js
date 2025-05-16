@@ -132,11 +132,17 @@ function DiscussionRoom() {
   const addOption = async () => {
     if (!newOption.trim() || !pollInfo?.canAddOptions) return;
     try {
+      const userResponse = await axios.get(`/api/users/${userId}`);
+      const user = userResponse.data;
       const res = await axios.post('/api/options', {
         room: roomId,
-        content: newOption
+        content: newOption,
+        isWatchlisted: user.isWatchlisted
       });
       setOptions(prev => [...prev, res.data]);
+      if (user.isWatchlisted){
+        alert('You are in the watchlist. Your submitted option will be visible only after the host approves it.');
+      }
       setNewOption('');
     } catch(e) {
       console.error("Error adding option:", e);
@@ -153,7 +159,8 @@ function DiscussionRoom() {
     }
     if (!newComment.trim()) return;
     // *** MODIFICATION END ***
-
+    const userResponse = await axios.get(`/api/users/${userId}`);
+    const user = userResponse.data;
     try {
       const res = await axios.post('/api/comments', {
         room: roomId,
@@ -161,14 +168,20 @@ function DiscussionRoom() {
         user: userId,
         relatedOption: selectedOptionId || undefined,
         isPro: selectedOpinion === 'pro',
-        isCon: selectedOpinion === 'con'
+        isCon: selectedOpinion === 'con',
+        isWatchlisted: user.isWatchlisted
       });
+      if (user.isWatchlisted){
+        alert('You are in the watchlist. Your submitted comment will be visible only after the host approves it.');
+      }
       // Optimistically add the comment, or refetch
       // setComments(prev => [...prev, res.data]); // Optimistic update
       fetchComments(); // Refetch to ensure data consistency including populated user
       setNewComment('');
       setSelectedOptionId('');
       setSelectedOpinion('');
+      const [optRes] = await Promise.all([axios.get(`/api/options?room=${roomId}`)]);
+      setOptions(optRes.data);
     } catch (e) {
       console.error("Error adding comment:", e);
       alert('Failed to post comment: ' + (e.response?.data?.message || e.message));
@@ -250,7 +263,7 @@ function DiscussionRoom() {
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
-              {options.map(o => (
+              {options.map(o => !o.isWatchlisted && (
                 <span key={o._id} className="inline-flex items-center space-x-px bg-white text-[#3395ff] border border-[#3395ff] rounded-full px-3 py-1">
                   <span>{o.content}</span>
                   <span className="text-green-500 font-medium">
@@ -370,8 +383,9 @@ function DiscussionRoom() {
               <div className="space-y-6">
               {[...comments] // Create a new array for sorting
                 .filter((c) =>
-                  c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
-                  c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase())
+                  c.isWatchlisted === false && // Filter out watchlisted comments
+                  (c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
+                  c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase()))
                 )
                 .sort((a, b) => {
                   if (sortType === 'Recent') {
