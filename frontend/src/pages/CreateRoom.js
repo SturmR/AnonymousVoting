@@ -1,5 +1,5 @@
 // src/pages/CreateRoom.js
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, Clock, X, Plus } from 'react-feather';
@@ -37,6 +37,8 @@ function CreateRoom() {
   const [showModal, setShowModal] = useState(false);
   const [showLinksModal, setShowLinksModal] = useState(false); // New modal for links
   const [generatedLinks, setGeneratedLinks] = useState([]); // State to store generated links
+
+  const fileInputRef = useRef(null);
 
   // 1) Utility to generate a random username like "user8342"
   const generateRandomUsername = () =>
@@ -396,6 +398,46 @@ const handleConfirm = async () => {
       isEmailsInvalid ||
       isDropdownInvalid;
 
+  const handleCsvUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Quick type check
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+      alert('Please upload a valid .csv file.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      // split on newlines or commas
+      const entries = text
+        .split(/[\r\n,]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const emailRx = /\S+@\S+\.\S+/;
+      const newEmails = [];
+      entries.forEach(addr => {
+        if (emailRx.test(addr) && !emails.includes(addr) && !newEmails.includes(addr)) {
+          newEmails.push(addr);
+        }
+      });
+
+      if (newEmails.length) {
+        setEmails(prev => [...prev, ...newEmails]);
+      } else {
+        alert('No new valid email addresses found in the CSV.');
+      }
+      // reset file input so you can re‐upload same file if needed
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  
   return (
     <div className="min-h-screen flex flex-col">
       {/* Main Content */}
@@ -584,7 +626,19 @@ const handleConfirm = async () => {
 
 
               <div className="space-y-3 mb-6">
-                <button className="flex items-center border rounded-full px-4 py-1 text-sm text-gray-600 hover:bg-gray-50">
+                {/* hidden CSV input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={handleCsvUpload}
+                />
+                {/* CSV‐upload button */}
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="flex items-center border rounded-full px-4 py-1 text-sm text-gray-600 hover:bg-gray-50"
+                >
                   <Plus size={16} className="mr-1" /> Add via .csv file...
                 </button>
                 <button
