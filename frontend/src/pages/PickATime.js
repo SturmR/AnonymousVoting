@@ -77,6 +77,16 @@ function PickATime() {
     setShowModal(false);
     let createdRoomId = null;
 
+    // Function to generate a random hexadecimal ID
+    const generateRandomHexId = (length = 24) => { // You can adjust the length
+        const characters = 'abcdef0123456789';
+        let randomId = '';
+        for (let i = 0; i < length; i++) {
+            randomId += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return randomId;
+    };
+
     try {
       // 1) Create the room
       const roomPayload = {
@@ -86,7 +96,7 @@ function PickATime() {
         votingStart: votingStartDate,
         votingEnd: votingEndDate,
         canEditVote: allowVoteChange === 'yes',
-        editVoteUntil: changeVoteUntilDate,
+        editVoteUntil: allowVoteChange==='yes' ? changeVoteUntilDate : null,
         minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
         maxOptionsPerVote: maxOptionsPerVote === 'no-limit' ? Number.MAX_SAFE_INTEGER : parseInt(maxOptionsPerVote, 10),
       };
@@ -95,19 +105,23 @@ function PickATime() {
 
       // 2) Create the admin user
       const adminUsername = generateRandomUsername();
+      const adminGeneratedId = generateRandomHexId();
       const { data: adminUser} = await axios.post('/api/users', {
         room:     createdRoomId,
         username: adminUsername,
+        _id:      adminGeneratedId,
         email:  `${adminUsername}@example.com` //TODO: replace with actual
       });
-      const adminId = adminUser._id;
+      const adminId = adminGeneratedId;
 
       // 3) Create the users
       const userCreates = emails.map(email => {
         const username = generateRandomUsername();
+        const voterGeneratedId = generateRandomHexId();
         return axios.post('/api/users', {
           room: createdRoomId,
           username,
+          _id: voterGeneratedId,
           email
         });
       });
@@ -171,7 +185,7 @@ function PickATime() {
 };   
   
   // Date/Time picker component
-  const DateTimePicker = ({ label, selectedDate, onChange, id }) => {
+  const DateTimePicker = ({ label, selectedDate, onChange, id, error }) => {
     // Function to filter available times to 10-minute intervals (XX:X0)
     const filterTime = (time) => {
       const minutes = time.getMinutes();
@@ -184,7 +198,7 @@ function PickATime() {
         <div className="flex">
           <button 
             type="button"
-            className="border p-2 mr-2 rounded hover:bg-gray-100"
+            className={`border p-2 mr-2 rounded hover:bg-gray-100 ${error ? 'border-red-500' : 'border-gray-300'}`}
             onClick={() => {
               setActiveDatePicker(activeDatePicker === id ? null : id);
             }}
@@ -193,7 +207,7 @@ function PickATime() {
           </button>
           <button 
             type="button"
-            className="border p-2 rounded hover:bg-gray-100"
+            className={`border p-2 rounded hover:bg-gray-100 ${error ? 'border-red-500' : 'border-gray-300'}`}
             onClick={() => {
               setActiveDatePicker(activeDatePicker === `${id}-time` ? null : `${id}-time`);
             }}
@@ -202,7 +216,7 @@ function PickATime() {
           </button>
           
           {activeDatePicker === id && (
-            <div className="absolute z-10 mt-10">
+            <div className="absolute z-10 mt-10 bg-white shadow-lg border rounded">
               <DatePicker
                 selected={selectedDate}
                 onChange={(date) => {
@@ -210,13 +224,13 @@ function PickATime() {
                   setActiveDatePicker(null);
                 }}
                 inline
-                calendarClassName="bg-white shadow-lg border rounded"
+                // calendarClassName="bg-white shadow-lg border rounded"
               />
             </div>
           )}
           
           {activeDatePicker === `${id}-time` && (
-            <div className="absolute z-10 mt-10">
+            <div className="absolute z-10 mt-10 bg-white shadow-lg border rounded">
               <DatePicker
                 selected={selectedDate}
                 onChange={(date) => {
@@ -229,7 +243,7 @@ function PickATime() {
                 filterTime={filterTime}
                 dateFormat="h:mm aa"
                 inline
-                calendarClassName="bg-white shadow-lg border rounded"
+                // calendarClassName="bg-white shadow-lg border rounded"
               />
             </div>
           )}
@@ -370,223 +384,228 @@ const isQuestionEmpty = question.trim() === '';
       isDropdownInvalid;
 
   return (
-    <div className="flex-grow flex justify-center p-8">
-      <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
-        {/* Left Section */}
-        <div className="w-full md:w-2/3 p-8 border-r border-dashed border-gray-300">
-          {/* Question Input */}
-          <div className="mb-8">
-            <textarea
-              className="w-full p-4 text-2xl text-gray-500 border-none focus:outline-none resize-none"
-              placeholder="Write your question here..."
-              rows="3"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-            ></textarea>
-            {attemptedSubmit && isQuestionEmpty && <p className="text-red-500 text-sm mt-1">Question is required.</p>}
-          </div>
-
-          {/* Date and Time Selectors */}
-          <div className="space-y-4 relative">
-            <DateTimePicker 
-              label="Voting starts at:"
-              selectedDate={votingStartDate}
-              onChange={setVotingStartDate}
-              id="voting-start"
-              error={attemptedSubmit && !votingStartDate}
-            />
-            
-            <DateTimePicker 
-              label="Voting ends at:"
-              selectedDate={votingEndDate}
-              onChange={setVotingEndDate}
-              id="voting-end"
-              error={attemptedSubmit && !votingEndDate}
-            />
-            {isVotingTimeInvalid && (
-              <p className="text-red-500 text-sm mt-1">Voting end time must be after start time.</p>
-            )}
-            
-            {/* Dropdown Selectors */}
-            <div className="flex items-center mb-4">
-              <label className="w-64 font-medium">Allow Users to change their votes?</label>
-              <select 
-                className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                  attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
-                }`}
-                value={allowVoteChange}
-                onChange={(e) => setAllowVoteChange(e.target.value)}
-              >
-                <option>Select</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
+    <div className='min-h-screen flex flex-col'>
+      <main className="flex-grow flex justify-center p-8">
+        <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
+          {/* Left Section */}
+          <div className="w-full md:w-2/3 p-8 border-r border-dashed border-gray-300">
+            {/* Question Input */}
+            <div className="mb-8">
+              <textarea
+                className={`w-full p-4 text-2xl text-gray-500 border-b focus:outline-none resize-none transition-colors duration-200 ${attemptedSubmit && isQuestionEmpty ? 'border-red-500' : 'border-gray-300'}`}
+                placeholder="Write your question here..."
+                rows="3"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+              ></textarea>
+              {attemptedSubmit && isQuestionEmpty && <p className="text-red-500 text-sm mt-1">Question is required.</p>}
             </div>
-            
-            {allowVoteChange === 'yes' && (
-                <>
-            <DateTimePicker 
-              label="Allow users to change their vote until:"
-              selectedDate={changeVoteUntilDate}
-              onChange={setChangeVoteUntilDate}
-              id="change-vote-until"
-              error={attemptedSubmit && !changeVoteUntilDate}
-            />
-            {isChangeVoteTimeInvalid && (
-              <p className="text-red-500 text-sm mt-1">Vote change time limit must be in between voting start time and voting end time.</p>
-            )}
-            </>
-            )}
 
-            <div className="flex items-center">
-                <label className="w-64 font-medium">Minimum number of Options the Users must vote for:</label>
-                <select
+            {/* Date and Time Selectors */}
+            <div className="space-y-4 relative">
+              <DateTimePicker 
+                label="Voting starts at:"
+                selectedDate={votingStartDate}
+                onChange={setVotingStartDate}
+                id="voting-start"
+                error={attemptedSubmit && !votingStartDate}
+              />
+              
+              <DateTimePicker 
+                label="Voting ends at:"
+                selectedDate={votingEndDate}
+                onChange={setVotingEndDate}
+                id="voting-end"
+                error={attemptedSubmit && !votingEndDate}
+              />
+              {isVotingTimeInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">End time must be after start time.</p>
+              )}
+              
+              {/* Dropdown Selectors */}
+              <div className="flex items-center mb-4">
+                <label className="w-[400px] font-medium mr-4">Allow Users to change their votes?</label>
+                <select 
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                    attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
-                  }`}                
-                  value={minOptionsPerVote}
-                  onChange={(e) => setMinOptionsPerVote(e.target.value)}
+                    attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  value={allowVoteChange}
+                  onChange={(e) => setAllowVoteChange(e.target.value)}
                 >
                   <option disabled value="Select">Select</option>
-                  <option value="no-limit">No limit</option>
-                  {[...Array(Math.max(1, options.length)).keys()].map(i =>
-                     <option key={i+1} value={i+1}>{i+1}</option>
-                   ) // TODO: instead of number of options, do like 10-20~
-                   } 
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
                 </select>
               </div>
+              
+              {allowVoteChange === 'yes' && (
+                <>
+                  <DateTimePicker 
+                    label="Allow users to change their vote until:"
+                    selectedDate={changeVoteUntilDate}
+                    onChange={setChangeVoteUntilDate}
+                    id="change-vote-until"
+                    error={attemptedSubmit && !changeVoteUntilDate}
+                  />
+                  {isChangeVoteTimeInvalid && (
+                    <p className="text-red-500 text-sm mt-1">Must be between voting start and end.</p>
+                  )}
+                </>
+              )}
 
-              <div className="flex items-center">
-                <label className="w-64 font-medium">Maximum number of Options the Users can vote for:</label>
-                <select
-                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                    attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                
-                  value={maxOptionsPerVote}
-                  onChange={(e) => setMaxOptionsPerVote(e.target.value)}
+              <div className="flex items-center margin-between-2">
+                  <label className="w-[400px] font-medium mr-4">Minimum number of Options the Users must vote for:</label>
+                  <select
+                    className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                      attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    }`}                
+                    value={minOptionsPerVote}
+                    onChange={(e) => setMinOptionsPerVote(e.target.value)}
+                  >
+                    <option disabled value="Select">Select</option>
+                    <option value="no-limit">No limit</option>
+                    {[...Array(Math.max(1, options.length)).keys()].map(i =>
+                      <option key={i+1} value={i+1}>{i+1}</option>
+                    ) // TODO: instead of number of options, do like 10-20~
+                    } 
+                  </select>
+                </div>
+
+                <div className="flex items-center">
+                  <label className="w-[400px] font-medium mr-4">Maximum number of Options the Users can vote for:</label>
+                  <select
+                    className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                      attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  
+                    value={maxOptionsPerVote}
+                    onChange={(e) => setMaxOptionsPerVote(e.target.value)}
+                  >
+                    <option disabled value= "Select">Select</option>
+                    {[...Array(Math.max(1, options.length)).keys()].map(i =>
+                      <option key={i+1} value={i+1}>{i+1}</option>
+                    )}
+                    <option value="no-limit">No Limit</option>
+                  </select>
+                </div>
+
+              <div className="flex items-center mb-4">
+                <label className="w-[400px] font-medium mr-4">The step size for time options:</label>
+                  <select className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                        attemptedSubmit && stepSize === 'Select' ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                  value={stepSize}
+                  onChange={e => setStepSize(e.target.value)}
                 >
                   <option disabled value= "Select">Select</option>
-                  {[...Array(Math.max(1, options.length)).keys()].map(i =>
-                     <option key={i+1} value={i+1}>{i+1}</option>
-                   )}
-                  <option value="no-limit">No Limit</option>
+                  <option value="15">15 min</option>
+                  <option value="30">30 min</option>
+                  <option value="60">1 hour</option>
+                  <option value="120">2 hours</option>
                 </select>
               </div>
-
-            <div className="flex items-center mb-4">
-              <label className="w-64 font-medium">The step size for time options</label>
-              <select className="border rounded px-3 py-1 w-24"
-                value={stepSize}
-                onChange={e => setStepSize(e.target.value)}
-              >
-                <option>Select</option>
-                <option value="15">15 min</option>
-                <option value="30">30 min</option>
-                <option value="60">1 hour</option>
-                <option value="120">2 hours</option>
-              </select>
-            </div>
-
-            <DateTimePicker 
-              label="The start time for time options"
-              selectedDate={optionsStartDate}
-              onChange={setOptionsStartDate}
-              id="options-start-date"
-            />
-
-            <DateTimePicker 
-              label="The end time for time options"
-              selectedDate={optionsEndDate}
-              onChange={setOptionsEndDate}
-              id="options-end-date"
-            />
-
-            <div className="flex items-center mb-4">
-              <label className="w-64 font-medium">Include weekends?</label>
-              <select className="border rounded px-3 py-1 w-24"
-                value={includeWeekends}
-                onChange={e => setIncludeWeekends(e.target.value)}
-              >
-                <option>Select</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Section */}
-        <div className="w-full md:w-1/3 p-8">
-          <div>
-            <h3 className="text-xl font-bold mb-4">Voters:</h3>
-              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                {emails.map((email, index) => (
-                  <div key={index} className="flex justify-between items-center bg-gray-100 p-1 px-2 rounded text-sm">
-                    <span>{email}</span>
-                    <button onClick={() => removeEmail(index)} className="text-red-500 hover:text-red-700">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-                {attemptedSubmit && isEmailsInvalid && <p className="text-red-500 text-sm mb-2">Add at least one voter email.</p>}
-
-            <div className="space-y-3 mb-6">
-              <button className="flex items-center border rounded-full px-4 py-1 text-sm">
-                <Plus size={16} className="mr-1" /> Add Voters' emails via .csv file...
-              </button>
-              <button 
-                  onClick={() => setShowEmailInput(!showEmailInput)}
-                  className="flex items-center border rounded-full px-4 py-1 text-sm">
-                <Plus size={16} className="mr-1" /> Add Voters' emails one by one...
-              </button>
-              {showEmailInput && (
-                <input
-                  type="email"
-                  placeholder="Type email and press Enter"
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addEmail();
-                    }
-                  }}
-                  autoFocus
-                  className="w-full border rounded px-3 py-2 text-sm"
+              
+              <div className="flex items-center mb-4">
+                <DateTimePicker 
+                  label="The start time for time options:"
+                  selectedDate={optionsStartDate}
+                  onChange={setOptionsStartDate}
+                  id="options-start-date"
+                  error={attemptedSubmit && !optionsStartDate}
                 />
-              )}
+              </div>
+              <div className="flex items-center mb-4">
+                <DateTimePicker 
+                  label="The end time for time options:"
+                  selectedDate={optionsEndDate}
+                  onChange={setOptionsEndDate}
+                  id="options-end-date"
+                  error={attemptedSubmit && !optionsEndDate}
+                />
+              </div>
+              <div className="flex items-center mb-4">
+                <label className="w-[400px] font-medium mr-4">Include weekends?</label>
+                <select className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                      attemptedSubmit && includeWeekends === 'Select' ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  value={includeWeekends}
+                  onChange={e => setIncludeWeekends(e.target.value)}
+                >
+                  <option disabled value="Select">Select</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Spacer to push buttons down */}
-          <div className="flex-grow"></div>
+          {/* Right Section */}
+          <div className="w-full md:w-1/3 p-8">
+            <div>
+              <h3 className="text-xl font-bold mb-4">Voters:</h3>
+                <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
+                  {emails.map((email, index) => (
+                    <div key={index} className="flex justify-between items-center bg-gray-100 p-1 px-2 rounded text-sm">
+                      <span>{email}</span>
+                      <button onClick={() => removeEmail(index)} className="text-red-500 hover:text-red-700">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                  {attemptedSubmit && isEmailsInvalid && <p className="text-red-500 text-sm mb-2">Add at least one voter email.</p>}
 
-          {/* Action Buttons */}
-          <div className="space-y-3 mt-auto">
-              {formError && (
-                <p className="text-red-500 text-sm mb-2 text-center">{formError}</p>
-              )}
-            <button
-              onClick={() => alert('Preview functionality not implemented.')}
-              className="w-full bg-[#99caff] text-[#004999] rounded py-2 font-medium hover:bg-opacity-80 transition-colors">
-              Preview
-            </button>
-            <button
-              className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80] transition-colors"
-              onClick={handleCreate}
-            >
-              Create
-            </button>
-          </div>          
+              <div className="space-y-3 mb-6">
+                <button className="flex items-center border rounded-full px-4 py-1 text-sm">
+                  <Plus size={16} className="mr-1" /> Add Voters' emails via .csv file...
+                </button>
+                <button 
+                    onClick={() => setShowEmailInput(!showEmailInput)}
+                    className="flex items-center border rounded-full px-4 py-1 text-sm">
+                  <Plus size={16} className="mr-1" /> Add Voters' emails one by one...
+                </button>
+                {showEmailInput && (
+                  <input
+                    type="email"
+                    placeholder="Type email and press Enter"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addEmail();
+                      }
+                    }}
+                    autoFocus
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Spacer to push buttons down */}
+            <div className="flex-grow"></div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3 mt-auto">
+                {formError && (
+                  <p className="text-red-500 text-sm mb-2 text-center">{formError}</p>
+                )}
+              <button
+                className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80] transition-colors"
+                onClick={handleCreate}
+              >
+                Create
+              </button>
+            </div>          
+          </div>
         </div>
+        </main>
+        
+        {/* Render the confirmation modal */}
+        <ConfirmationModal />
+        <LinksModal /> {/* Add the new modal */}
       </div>
-      
-      {/* Render the confirmation modal */}
-      <ConfirmationModal />
-      <LinksModal /> {/* Add the new modal */}
-    </div>
   );
 }
 

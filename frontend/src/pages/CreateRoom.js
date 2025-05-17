@@ -1,3 +1,4 @@
+// src/pages/CreateRoom.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -397,7 +398,6 @@ const handleConfirm = async () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-
       {/* Main Content */}
       <main className="flex-grow flex justify-center p-8">
         <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
@@ -453,7 +453,7 @@ const handleConfirm = async () => {
             {/* Date and Time Selectors */}
             <div className="space-y-4 relative">
               <DateTimePicker
-                label="Discussion starts at: *"
+                label="Discussion starts at:"
                 selectedDate={discussionStartDate}
                 onChange={setDiscussionStartDate}
                 id="discussion-start"
@@ -461,7 +461,7 @@ const handleConfirm = async () => {
               />
 
               <DateTimePicker
-                label="Discussion ends at: *"
+                label="Discussion ends at:"
                 selectedDate={discussionEndDate}
                 onChange={setDiscussionEndDate}
                 id="discussion-end"
@@ -472,7 +472,7 @@ const handleConfirm = async () => {
               )}
 
               <DateTimePicker
-                label="Voting starts at: *"
+                label="Voting starts at:"
                 selectedDate={votingStartDate}
                 onChange={setVotingStartDate}
                 id="voting-start"
@@ -480,7 +480,7 @@ const handleConfirm = async () => {
               />
 
               <DateTimePicker
-                label="Voting ends at: *"
+                label="Voting ends at:"
                 selectedDate={votingEndDate}
                 onChange={setVotingEndDate}
                 id="voting-end"
@@ -492,7 +492,7 @@ const handleConfirm = async () => {
 
               {/* Dropdown Selectors */}
               <div className="flex items-center">
-                <label className="w-64 font-medium">Allow Users to submit new Options? *</label>
+                <label className="w-[400px] font-medium mr-4">Allow Users to submit new Options?</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${attemptedSubmit && allowSubmitOptions === 'Select' ? 'border-red-500' : 'border-gray-300'}`}
                   value={allowSubmitOptions}
@@ -505,7 +505,7 @@ const handleConfirm = async () => {
               </div>
 
               <div className="flex items-center">
-                <label className="w-64 font-medium">Allow Users to change their votes? *</label>
+                <label className="w-[400px] font-medium mr-4">Allow Users to change their votes?</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${attemptedSubmit && allowVoteChange === 'Select' ? 'border-red-500' : 'border-gray-300'}`}
                   value={allowVoteChange}
@@ -533,9 +533,8 @@ const handleConfirm = async () => {
                 </>
               )}
 
-
               <div className="flex items-center">
-                <label className="w-64 font-medium">Min options per vote: *</label>
+                <label className="w-[400px] font-medium mr-4">Minimum number of Options the Users must vote for:</label>
                 <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'}`}
                   value={minOptionsPerVote}
@@ -551,7 +550,7 @@ const handleConfirm = async () => {
               </div>
 
               <div className="flex items-center">
-                <label className="w-64 font-medium">Max options per vote: *</label>
+                <label className="w-[400px] font-medium mr-4">Maximum number of Options the Users can vote for:*</label>
                  <select
                   className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'}`}
                   value={maxOptionsPerVote}
@@ -565,13 +564,12 @@ const handleConfirm = async () => {
                 </select>
               </div>
             </div>
-             <p className="text-xs text-gray-500 mt-4">* Required field</p>
           </div>
 
           {/* Right Section */}
           <div className="w-full md:w-1/3 p-8 flex flex-col">
             <div>
-              <h3 className="text-xl font-bold mb-4">Voters: *</h3>
+              <h3 className="text-xl font-bold mb-4">Voters:</h3>
               <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
                   {emails.map((email, index) => (
                        <div key={index} className="flex justify-between items-center bg-gray-100 p-1 px-2 rounded text-sm">
@@ -621,11 +619,6 @@ const handleConfirm = async () => {
                {formError && (
                  <p className="text-red-500 text-sm mb-2 text-center">{formError}</p>
                )}
-              <button
-                onClick={() => alert('Preview functionality not implemented.')}
-                className="w-full bg-[#99caff] text-[#004999] rounded py-2 font-medium hover:bg-opacity-80 transition-colors">
-                Preview
-              </button>
               <button
                 className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80] transition-colors"
                 onClick={handleCreate}

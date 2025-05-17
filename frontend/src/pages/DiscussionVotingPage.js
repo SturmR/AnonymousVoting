@@ -216,6 +216,11 @@ function DiscussionVotingPage() {
                 Selected: {selectedOptions.length} option(s)
               </p>
             )}
+            {hasVoted && (
+              <p className="mt-2 text-red-500">
+                You have already voted. You {canSubmit ? "can" : "can't"} change your vote.
+              </p>
+            )}
             <button 
             className={classnames(
               "flex items-center mt-4 rounded px-4 py-2 w-full justify-center",

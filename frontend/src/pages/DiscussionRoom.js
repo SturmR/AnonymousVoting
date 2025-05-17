@@ -133,6 +133,11 @@ function DiscussionRoom() {
   // Add Option
   const addOption = async () => {
     if (!newOption.trim() || !pollInfo?.canAddOptions) return;
+    // if the option exists, do not add it
+    if (options.some(o => o.content === newOption)) { 
+      alert('Option already exists or is in the watchlist.');
+      return;
+    }
     try {
       const userResponse = await axios.get(`/api/users/${userId}`);
       const user = userResponse.data;
@@ -142,7 +147,12 @@ function DiscussionRoom() {
         isWatchlisted: user.isWatchlisted
       });
       setOptions(prev => [...prev, res.data]);
-      if (user.isWatchlisted) {
+
+      const roomRes = await axios.put(`/api/rooms/${roomId}`, {
+        optionList: options.map(o => o._id)
+      });
+      setRoom(roomRes.data);
+      if (user.isWatchlisted){
         alert('You are in the watchlist. Your submitted option will be visible only after the host approves it.');
       }
       setNewOption('');
@@ -307,7 +317,7 @@ function DiscussionRoom() {
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold">Comments</h3>
-                <span className="text-gray-500">{comments.length} comments</span>
+                <span className="text-gray-500">{comments.filter((c) => !c.isWatchlisted).length} comments</span>
               </div>
               <div className="border border-gray-300 rounded-lg p-4 mb-4 bg-white">
                 <div className="mb-4">
