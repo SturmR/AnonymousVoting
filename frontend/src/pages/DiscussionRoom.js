@@ -181,7 +181,7 @@ function DiscussionRoom() {
           `Something similar was already posted: "${sim.comment.content}".\nDo you still want to submit?`
         );
         if (!ok) return;  // abort if user cancels
-
+      }
       if (user.isWatchlisted) {
         alert('You are in the watchlist. Your submitted comment will be visible only after the host approves it.');
       }
