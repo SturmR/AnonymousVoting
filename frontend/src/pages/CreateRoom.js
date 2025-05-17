@@ -117,7 +117,8 @@ const handleConfirm = async () => {
             username:   adminUsername,
             // Instead of relying on MongoDB's ObjectId, use the generated one
             _id:        adminGeneratedId,
-            email:      `${adminUsername}@example.com`
+            email:      `${adminUsername}@example.com`,
+            isAdmin:    true
         });
         const adminId = adminGeneratedId; // Use the generated ID
 
@@ -158,7 +159,7 @@ const handleConfirm = async () => {
         const links = [
             {
                 label: 'Admin Link',
-                url:   `${window.location.origin}/admin/discussion/${createdRoomId}?user=${adminId}`
+                url:   `${window.location.origin}/rooms/${createdRoomId}?user=${adminId}`
             },
             ...voterData.map(u => ({
                 label: u.email,
