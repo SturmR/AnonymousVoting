@@ -7,6 +7,7 @@ const UserSchema = new mongoose.Schema({
     isWatchlisted: { type: Boolean, default: false },
     email: { type: String, required: true },
     password: { type: String, default: '' },
+    isAdmin: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model('User', UserSchema);
