@@ -22,6 +22,7 @@ function DiscussionRoom() {
 
   // State for user data - fetch username based on userId
   const [username, setUsername] = useState('Loading...'); // Show loading state initially
+  const [user, setUser] = useState(null); // Store the user object.
   useEffect(() => {
     if (!userId) {
       setUsername('Anonymous / No User ID'); // Handle case where user ID is missing
@@ -29,16 +30,17 @@ function DiscussionRoom() {
       return;
     }
     axios.get(`/api/users/${userId}`)
-         .then(res => {
-            setUsername(res.data.username); // Use the fetched username
-            // Store nickname locally if needed, but use userId for backend interactions
-            const key = `room_${roomId}_nickname_for_${userId}`;
-            localStorage.setItem(key, res.data.username);
-         })
-         .catch(err => {
-            console.error("Error fetching username:", err);
-            setUsername('Unknown User'); // Show error state
-         });
+      .then(res => {
+        setUsername(res.data.username); // Use the fetched username
+        setUser(res.data); // Store the entire user object.
+        // Store nickname locally if needed, but use userId for backend interactions
+        const key = `room_${roomId}_nickname_for_${userId}`;
+        localStorage.setItem(key, res.data.username);
+      })
+      .catch(err => {
+        console.error("Error fetching username:", err);
+        setUsername('Unknown User'); // Show error state
+      });
   }, [userId, roomId]);
 
   // State for other room data
@@ -54,7 +56,7 @@ function DiscussionRoom() {
   const [pollInfo, setPollInfo] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0 });
   const [votingTimeRemaining, setVotingTimeRemaining] = useState({ hasStarted: false, hasEnded: false });
-  const [room,    setRoom]    = useState(null);
+  const [room, setRoom] = useState(null);
   const [userToken, setUserToken] = useState(null); // Placeholder if needed later
   const [bgColorIndex, setBgColorIndex] = useState(0);
 
@@ -96,9 +98,9 @@ function DiscussionRoom() {
         setPollInfo({
           canAddOptions: roomData.canAddOption,
           votingBegins: new Date(roomData.votingStart),
-          votingEnds:    new Date(roomData.votingEnd),
+          votingEnds: new Date(roomData.votingEnd),
           votesEditableUntil: new Date(roomData.editVoteUntil),
-          discussionEnds:     new Date(roomData.discussionEnd),
+          discussionEnds: new Date(roomData.discussionEnd),
         });
         const [optRes, comRes] = await Promise.all([
           axios.get(`/api/options?room=${roomId}`),
@@ -118,19 +120,24 @@ function DiscussionRoom() {
   }, [roomId]);
   useEffect(() => {
     if (pollInfo) updateTimeRemaining();
-}, [pollInfo]);
+  }, [pollInfo]);
 
   // Fetch comments (can be triggered again if needed)
   const fetchComments = () => {
-     axios.get(`/api/comments?room=${roomId}`).then(r => setComments(r.data)).catch(console.error);
+    axios.get(`/api/comments?room=${roomId}`).then(r => setComments(r.data)).catch(console.error);
   }
   // useEffect(() => {
-  //   fetchComments();
+  //  fetchComments();
   // }, [roomId]); // Fetch initially
 
   // Add Option
   const addOption = async () => {
     if (!newOption.trim() || !pollInfo?.canAddOptions) return;
+    // if the option exists, do not add it
+    if (options.some(o => o.content === newOption)) { 
+      alert('Option already exists or is in the watchlist.');
+      return;
+    }
     try {
       const userResponse = await axios.get(`/api/users/${userId}`);
       const user = userResponse.data;
@@ -140,17 +147,28 @@ function DiscussionRoom() {
         isWatchlisted: user.isWatchlisted
       });
       setOptions(prev => [...prev, res.data]);
+
+      const roomRes = await axios.put(`/api/rooms/${roomId}`, {
+        optionList: options.map(o => o._id)
+      });
+      setRoom(roomRes.data);
       if (user.isWatchlisted){
         alert('You are in the watchlist. Your submitted option will be visible only after the host approves it.');
       }
       setNewOption('');
-    } catch(e) {
+    } catch (e) {
       console.error("Error adding option:", e);
     }
   };
 
   // Add Comment
   const addComment = async () => {
+    // *** MODIFICATION START ***
+    // Check if userId exists (it should if the user followed the correct link)
+    if (!userId) {
+      alert('Cannot post comment: User ID is missing. Please ensure you accessed this page via the link provided upon room creation.');
+      return;
+    }
     if (!newComment.trim()) return;
     // 1) Similarity check
     try {
@@ -163,6 +181,9 @@ function DiscussionRoom() {
           `Something similar was already posted: "${sim.comment.content}".\nDo you still want to submit?`
         );
         if (!ok) return;  // abort if user cancels
+
+      if (user.isWatchlisted) {
+        alert('You are in the watchlist. Your submitted comment will be visible only after the host approves it.');
       }
     } catch (err) {
       console.error('Similarity check failed:', err);
@@ -194,21 +215,21 @@ function DiscussionRoom() {
     return date.toLocaleDateString('de-DE', {
       day: '2-digit', month: '2-digit', year: 'numeric'
     }).replace(/\./g, '/') + ', ' +
-    date.toLocaleTimeString('de-DE', {
-      hour: '2-digit', minute: '2-digit'
-    });
+      date.toLocaleTimeString('de-DE', {
+        hour: '2-digit', minute: '2-digit'
+      });
   };
 
   const handleVote = async (commentId, type) => {
     try {
-      const res = await axios.post(`/api/comments/${commentId}/${type}`, {user: userId});
+      const res = await axios.post(`/api/comments/${commentId}/${type}`, { user: userId });
       // Update the specific comment in the state
       setComments(prev => {
         return prev.map(c => {
           if (c._id === commentId) {
             let newUpvoted = c.upvoted;
             let newDownvoted = c.downvoted;
-            
+
             if (type === 'upvote') {
               if (c.upvoted) {
                 newUpvoted = false; // Remove upvote
@@ -227,12 +248,16 @@ function DiscussionRoom() {
             return { ...c, votes: res.data.votes, upvoted: newUpvoted, downvoted: newDownvoted };
           }
           return c;
-        }); 
+        });
       });
     } catch (err) {
       console.error("Error voting on comment:", err);
       alert('Failed to vote: ' + (err.response?.data?.message || err.message));
     }
+  };
+
+  const goToAdminPanel = () => {
+    navigate(`/admin/discussion/${roomId}`);
   };
 
   if (!room || !pollInfo) {
@@ -263,17 +288,17 @@ function DiscussionRoom() {
               </div>
 
               <div className="flex flex-wrap gap-2 mb-4">
-              {options.map(o => !o.isWatchlisted && (
-                <span key={o._id} className="inline-flex items-center space-x-px bg-white text-[#3395ff] border border-[#3395ff] rounded-full px-3 py-1">
-                  <span>{o.content}</span>
-                  <span className="text-green-500 font-medium">
-                    ({o.numberOfProComments ?? 0})
+                {options.map(o => !o.isWatchlisted && (
+                  <span key={o._id} className="inline-flex items-center space-x-px bg-white text-[#3395ff] border border-[#3395ff] rounded-full px-3 py-1">
+                    <span>{o.content}</span>
+                    <span className="text-green-500 font-medium">
+                      ({o.numberOfProComments ?? 0})
+                    </span>
+                    <span className="text-red-500 font-medium">
+                      ({o.numberOfConComments ?? 0})
+                    </span>
                   </span>
-                  <span className="text-red-500 font-medium">
-                    ({o.numberOfConComments ?? 0})
-                  </span>
-                </span>
-              ))}
+                ))}
               </div>
 
               {pollInfo.canAddOptions && (
@@ -294,14 +319,14 @@ function DiscussionRoom() {
                     <Plus size={16} />
                   </button>
                 </div>
-               )}
+              )}
             </div>
 
             {/* Comments */}
             <div>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold">Comments</h3>
-                <span className="text-gray-500">{comments.length} comments</span>
+                <span className="text-gray-500">{comments.filter((c) => !c.isWatchlisted).length} comments</span>
               </div>
               <div className="border border-gray-300 rounded-lg p-4 mb-4 bg-white">
                 <div className="mb-4">
@@ -382,35 +407,43 @@ function DiscussionRoom() {
 
               {/* Comment List */}
               <div className="space-y-6">
-              {[...comments] // Create a new array for sorting
-                .filter((c) =>
-                  c.isWatchlisted === false && // Filter out watchlisted comments
-                  (c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
-                  c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase()))
-                )
-                .sort((a, b) => {
-                  if (sortType === 'Recent') {
-                    return new Date(b.createdAt) - new Date(a.createdAt);
-                  } else if (sortType === 'Oldest') {
-                    return new Date(a.createdAt) - new Date(b.createdAt);
-                  } else if (sortType === 'Most Votes') {
-                    // Ensure votes exist and default to 0 if not
-                    const votesA = a.votes ?? 0;
-                    const votesB = b.votes ?? 0;
-                    return votesB - votesA;
-                  }
-                  return 0; // Default case
-                })
-                .map((comment) => (
-                  // Ensure comment has _id before rendering
-                  comment._id ? <Comment key={comment._id} comment={comment} onVote={handleVote} /> : null
-              ))}
+                {[...comments] // Create a new array for sorting
+                  .filter((c) =>
+                    c.isWatchlisted === false && // Filter out watchlisted comments
+                    (c.content.toLowerCase().includes(searchComment.toLowerCase()) ||
+                      c.relatedOption?.content?.toLowerCase().includes(searchComment.toLowerCase()))
+                  )
+                  .sort((a, b) => {
+                    if (sortType === 'Recent') {
+                      return new Date(b.createdAt) - new Date(a.createdAt);
+                    } else if (sortType === 'Oldest') {
+                      return new Date(a.createdAt) - new Date(b.createdAt);
+                    } else if (sortType === 'Most Votes') {
+                      // Ensure votes exist and default to 0 if not
+                      const votesA = a.votes ?? 0;
+                      const votesB = b.votes ?? 0;
+                      return votesB - votesA;
+                    }
+                    return 0; // Default case
+                  })
+                  .map((comment) => (
+                    // Ensure comment has _id before rendering
+                    comment._id ? <Comment key={comment._id} comment={comment} onVote={handleVote} /> : null
+                  ))}
               </div>
             </div>
           </div>
 
           {/* Right Section - Info */}
-          <div className="w-full md:w-1/3 p-8">
+            <div className="w-full md:w-1/3 p-8 flex flex-col items-start">
+              {user?.isAdmin && (
+                <button
+                  onClick={goToAdminPanel}
+                  className="bg-[#1E4A8B] text-white rounded px-4 py-2 mb-8 w-full text-center"  // Changed from bg-navy-blue to #003366
+                >
+                  Go to Admin Panel
+                </button>
+              )}
             <div className="mb-8">
               {/* Display fetched username */}
               <h3 className="text-xl font-bold mb-2">Welcome, {username}</h3>
@@ -426,19 +459,19 @@ function DiscussionRoom() {
             </div>
 
             <div className="mb-8">
-              <h3 className="text-xl font-bold mb-2">Time remaining for Discussion:</h3>              
-              <p className="mb-1">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.days + 'days': 'Discussion has ended.'}</p>
-              <p className="mb-1">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.hours + 'hours': ''}</p>
-              <p className="mb-4">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.minutes + 'minutes': ''}</p>
+              <h3 className="text-xl font-bold mb-2">Time remaining for Discussion:</h3>
+              <p className="mb-1">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.days + 'days' : 'Discussion has ended.'}</p>
+              <p className="mb-1">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.hours + 'hours' : ''}</p>
+              <p className="mb-4">{(timeRemaining.days || timeRemaining.hours || timeRemaining.minutes) ? timeRemaining.minutes + 'minutes' : ''}</p>
             </div>
 
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-2">Time remaining for Voting:</h3>
               {!votingTimeRemaining.hasStarted ?
-                ( <p>Voting hasn't started yet.</p> )
+                (<p>Voting hasn't started yet.</p>)
                 : votingTimeRemaining.hasEnded ?
-                ( <p>Voting has ended.</p> )
-                : ( <p>Voting is in progress.</p> )
+                  (<p>Voting has ended.</p>)
+                  : (<p>Voting is in progress.</p>)
               }
             </div>
 
@@ -452,7 +485,7 @@ function DiscussionRoom() {
                 )}
                 style={{
                   backgroundColor: votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded ? colors[bgColorIndex] : undefined,
-                  color:  votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded ? '#FFFFFF' : '#FFFFFF',
+                  color: votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded ? '#FFFFFF' : '#FFFFFF',
                   backgroundImage: votingTimeRemaining.hasStarted && !votingTimeRemaining.hasEnded
                     ? `linear-gradient(to right, ${colors[bgColorIndex]}, ${colors[(bgColorIndex + 1) % colors.length]})`
                     : undefined,
@@ -460,7 +493,7 @@ function DiscussionRoom() {
                 disabled={!votingTimeRemaining.hasStarted || votingTimeRemaining.hasEnded}
                 onClick={() => navigate(`/rooms/${roomId}/vote?user=${userId}`)} // Pass userId
               >
-                <span>Go to Voting</span> <ArrowRight size={16}  />
+                <span>Go to Voting</span> <ArrowRight size={16} />
               </button>
             </div>
           </div>

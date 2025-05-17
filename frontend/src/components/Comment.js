@@ -13,6 +13,24 @@ export default function Comment({ comment, onVote }) {
     return `${diffInDays} days ago`;
   };
 
+  const linkify = (text) => {
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    return text.split(urlRegex).map((part, index) => {
+      const match = text.match(urlRegex)?.[index-1];
+      if (match) {
+        return (
+          <React.Fragment key={index}>
+            {part}
+            <a href={match} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+              {match}
+            </a>
+          </React.Fragment>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className="border-b pb-4">
       <div className="flex items-center mb-2">
@@ -37,7 +55,7 @@ export default function Comment({ comment, onVote }) {
         <span className="ml-auto text-gray-500 text-sm">{timeAgo(comment.createdAt)}</span>
       </div>
 
-      <p className="mb-2">{comment.content}</p>
+      <p className="mb-2">{linkify(comment.content)}</p>
 
       <div className="flex items-center text-gray-500">
         <button
