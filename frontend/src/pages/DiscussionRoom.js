@@ -325,9 +325,10 @@ function DiscussionRoom() {
                       onChange={(e) => setSelectedOptionId(e.target.value)}
                     >
                       <option value="">Relate to Option (Optional)</option> {/* Improved placeholder */}
-                      {options.map((opt) => (
-                        <option key={opt._id} value={opt._id}>{opt.content}</option>
-                      ))}
+                      {options
+                        .filter((opt) => !opt.isWatchlisted) // Filter out watchlisted options
+                        .map((opt) => (<option key={opt._id} value={opt._id}>{opt.content}</option>))
+                      }
                     </select>
                   </div>
                   <div className="mr-2"> {/* Add margin */}

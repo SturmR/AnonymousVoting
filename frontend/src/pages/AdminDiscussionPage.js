@@ -535,9 +535,10 @@ function AdminDiscussionPage() {
                                         onChange={e => setSelectedOptionId(e.target.value)}
                                     >
                                         <option value="">Relate to Option (Optional)</option>
-                                        {options.map(o => (
-                                            <option key={o._id} value={o._id}>{o.content}</option>
-                                        ))}
+                                        {options
+                                            .filter(o => !o.isWatchlisted)
+                                            .map(o => (<option key={o._id} value={o._id}>{o.content}</option>))
+                                        }
                                     </select>
                                     <select
                                         className="border rounded p-2 mr-4"
