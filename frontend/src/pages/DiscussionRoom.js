@@ -170,33 +170,42 @@ function DiscussionRoom() {
       return;
     }
     if (!newComment.trim()) return;
-    // *** MODIFICATION END ***
-    const userResponse = await axios.get(`/api/users/${userId}`);
-    const user = userResponse.data;
+    // 1) Similarity check
     try {
-      const res = await axios.post('/api/comments', {
+      const { data: sim } = await axios.post('/api/comments/check-similarity', {
         room: roomId,
-        content: newComment,
-        user: userId,
-        relatedOption: selectedOptionId || undefined,
-        isPro: selectedOpinion === 'pro',
-        isCon: selectedOpinion === 'con',
-        isWatchlisted: user.isWatchlisted
+        content: newComment
       });
+      if (sim.similar) {
+        const ok = window.confirm(
+          `Something similar was already posted: "${sim.comment.content}".\nDo you still want to submit?`
+        );
+        if (!ok) return;  // abort if user cancels
+
       if (user.isWatchlisted) {
         alert('You are in the watchlist. Your submitted comment will be visible only after the host approves it.');
       }
-      // Optimistically add the comment, or refetch
-      // setComments(prev => [...prev, res.data]); // Optimistic update
-      fetchComments(); // Refetch to ensure data consistency including populated user
+    } catch (err) {
+      console.error('Similarity check failed:', err);
+      // optionally allow submission to proceed
+    }
+
+    // 2) Actual submit
+    try {
+      const res = await axios.post('/api/comments', {
+        room: roomId, content: newComment, user: userId,
+        relatedOption: selectedOptionId||undefined,
+        isPro: selectedOpinion==='pro',
+        isCon: selectedOpinion==='con',
+        isWatchlisted: (await axios.get(`/api/users/${userId}`)).data.isWatchlisted
+      });
+      fetchComments(); // reload comments
       setNewComment('');
       setSelectedOptionId('');
       setSelectedOpinion('');
-      const [optRes] = await Promise.all([axios.get(`/api/options?room=${roomId}`)]);
-      setOptions(optRes.data);
     } catch (e) {
       console.error("Error adding comment:", e);
-      alert('Failed to post comment: ' + (e.response?.data?.message || e.message));
+      alert('Failed to post comment: '+(e.response?.data?.message||e.message));
     }
   };
 

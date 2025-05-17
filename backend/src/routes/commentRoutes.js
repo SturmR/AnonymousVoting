@@ -4,6 +4,7 @@ const commentController = require('../controllers/commentController');
 
 // Routes
 router.get('/', commentController.getAllComments);
+router.post('/check-similarity', commentController.checkSimilarity);
 router.post('/', commentController.createComment);
 router.get('/:id', commentController.getCommentById);
 router.put('/:id', commentController.updateComment);
