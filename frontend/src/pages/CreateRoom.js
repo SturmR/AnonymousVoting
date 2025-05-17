@@ -73,92 +73,106 @@ function CreateRoom() {
     }
   };
 
-  // Handle confirmation: create the Room via backend, then navigate into it
+// Handle confirmation: create the Room via backend, then navigate into it
 const handleConfirm = async () => {
-  setShowModal(false);
-  let createdRoomId = null;
+    setShowModal(false);
+    let createdRoomId = null;
 
-  try {
-    // A) Create the room
-    const roomPayload = {
-      title: question,
-      description: '',
-      type: 'DiscussAndVote',
-      discussionStart: discussionStartDate,
-      discussionEnd:   discussionEndDate,
-      votingStart:     votingStartDate,
-      votingEnd:       votingEndDate,
-      canAddOption:    allowSubmitOptions === 'yes',
-      canEditVote:     allowVoteChange    === 'yes',
-      editVoteUntil:   allowVoteChange === 'yes' ? changeVoteUntilDate : null,
-      minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
-      maxOptionsPerVote: maxOptionsPerVote === 'no-limit'
-                           ? Number.MAX_SAFE_INTEGER
-                           : parseInt(maxOptionsPerVote, 10),
+    // Function to generate a random hexadecimal ID
+    const generateRandomHexId = (length = 24) => { // You can adjust the length
+        const characters = 'abcdef0123456789';
+        let randomId = '';
+        for (let i = 0; i < length; i++) {
+            randomId += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return randomId;
     };
-    const { data: room } = await axios.post('/api/rooms', roomPayload);
-    createdRoomId = room._id;
 
-    // B) Create the **admin** user
-    const adminUsername = generateRandomUsername();
-    const { data: adminUser } = await axios.post('/api/users', {
-      room:     createdRoomId,
-      username: adminUsername,
-      // you can replace this dummy email with a real one if you collect it
-      email:    `${adminUsername}@example.com`
-    });
-    const adminId = adminUser._id;
+    try {
+        // A) Create the room
+        const roomPayload = {
+            title: question,
+            description: '',
+            type: 'DiscussAndVote',
+            discussionStart: discussionStartDate,
+            discussionEnd:    discussionEndDate,
+            votingStart:      votingStartDate,
+            votingEnd:        votingEndDate,
+            canAddOption:     allowSubmitOptions === 'yes',
+            canEditVote:      allowVoteChange     === 'yes',
+            editVoteUntil:    allowVoteChange === 'yes' ? changeVoteUntilDate : null,
+            minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
+            maxOptionsPerVote: maxOptionsPerVote === 'no-limit'
+                                        ? Number.MAX_SAFE_INTEGER
+                                        : parseInt(maxOptionsPerVote, 10),
+        };
+        const { data: room } = await axios.post('/api/rooms', roomPayload);
+        createdRoomId = room._id;
 
-    // C) Create each voter user
-    const userCreates = emails.map(email => {
-      const username = generateRandomUsername();
-      return axios.post('/api/users', {
-        room:     createdRoomId,
-        username,
-        email,
-      });
-    });
-    const userResults = await Promise.all(userCreates);
-    const voterData = userResults.map((r, i) => ({
-      email: emails[i],
-      id:    r.data._id
-    }));
-    const voterIds = voterData.map(u => u.id);
+        // B) Create the **admin** user with a random ID
+        const adminUsername = generateRandomUsername();
+        const adminGeneratedId = generateRandomHexId(); // Generate random hex ID
+        const { data: adminUser } = await axios.post('/api/users', {
+            room:       createdRoomId,
+            username:   adminUsername,
+            // Instead of relying on MongoDB's ObjectId, use the generated one
+            _id:        adminGeneratedId,
+            email:      `${adminUsername}@example.com`
+        });
+        const adminId = adminGeneratedId; // Use the generated ID
 
-    // D) Patch room -> userList = [admin, ...voters]
-    await axios.put(`/api/rooms/${createdRoomId}`, {
-      userList: [adminId, ...voterIds]
-    });
+        // C) Create each voter user with a random ID
+        const userCreates = emails.map(email => {
+            const username = generateRandomUsername();
+            const voterGeneratedId = generateRandomHexId(); // Generate random hex ID
+            return axios.post('/api/users', {
+                room:       createdRoomId,
+                username,
+                _id:        voterGeneratedId,
+                email,
+            });
+        });
+        const userResults = await Promise.all(userCreates);
+        const voterData = userResults.map((r, i) => ({
+            email: emails[i],
+            id:    r.data._id // Use the generated ID from the response
+        }));
+        const voterIds = voterData.map(u => u.id);
 
-    // E) Create each option and patch optionList (unchanged)
-    const optionCreates = options.map(text =>
-      axios.post('/api/options', { room: createdRoomId, content: text })
-    );
-    const optionResults = await Promise.all(optionCreates);
-    const optionIds     = optionResults.map(r => r.data._id);
-    await axios.put(`/api/rooms/${createdRoomId}`, {
-      optionList: optionIds
-    });
+        // D) Patch room -> userList = [admin, ...voters]
+        await axios.put(`/api/rooms/${createdRoomId}`, {
+            userList: [adminId, ...voterIds]
+        });
 
-    // F) Generate the admin + voter links
-    const links = [
-      {
-        label: 'Admin Link',
-        url:   `${window.location.origin}/admin/discussion/${createdRoomId}?user=${adminId}`
-      },
-      ...voterData.map(u => ({
-        label: u.email,
-        url:   `${window.location.origin}/rooms/${createdRoomId}?user=${u.id}`
-      }))
-    ];
-    setGeneratedLinks(links);
-    setShowLinksModal(true);
+        // E) Create each option and patch optionList (unchanged)
+        const optionCreates = options.map(text =>
+            axios.post('/api/options', { room: createdRoomId, content: text })
+        );
+        const optionResults = await Promise.all(optionCreates);
+        const optionIds      = optionResults.map(r => r.data._id);
+        await axios.put(`/api/rooms/${createdRoomId}`, {
+            optionList: optionIds
+        });
 
-  } catch (err) {
-    console.error('Creation failed:', err);
-    // Optionally roll back partial creations here
-    alert(`Could not create room/users/options: ${err.message}`);
-  }
+        // F) Generate the admin + voter links using the generated IDs
+        const links = [
+            {
+                label: 'Admin Link',
+                url:   `${window.location.origin}/admin/discussion/${createdRoomId}?user=${adminId}`
+            },
+            ...voterData.map(u => ({
+                label: u.email,
+                url:   `${window.location.origin}/rooms/${createdRoomId}?user=${u.id}`
+            }))
+        ];
+        setGeneratedLinks(links);
+        setShowLinksModal(true);
+
+    } catch (err) {
+        console.error('Creation failed:', err);
+        // Optionally roll back partial creations here
+        alert(`Could not create room/users/options: ${err.message}`);
+    }
 };
 
   // Add this function inside your Meeting component
