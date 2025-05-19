@@ -1,5 +1,9 @@
-const Comment = require("../models/Comment");
-const Option  = require("../models/Option");
+const axios    = require('axios');
+const Comment  = require("../models/Comment");
+const Option   = require("../models/Option");
+const HF_URL   = 'https://router.huggingface.co/hf-inference/models';
+const MODEL    = 'sentence-transformers/all-MiniLM-L6-v2';
+const HF_TOKEN = process.env.HF_TOKEN;
 
 // Get all comments
 exports.getAllComments = async (req, res, next) => {
@@ -144,6 +148,48 @@ exports.downvoteComment = async (req, res, next) => {
 
     await comment.save();
     res.json({ votes: comment.votes });
+  } catch (err) {
+    next(err);
+  }
+};
+
+function cosineSimilarity(a, b) {
+  const dot = a.reduce((sum, v, i) => sum + v * b[i], 0);
+  const normA = Math.sqrt(a.reduce((sum, v) => sum + v * v, 0));
+  const normB = Math.sqrt(b.reduce((sum, v) => sum + v * v, 0));
+  return dot / (normA * normB);
+}
+
+exports.checkSimilarity = async (req, res, next) => {
+  console.log('HF_TOKEN is:', !!process.env.HF_TOKEN);
+  try {
+    const { room, content } = req.body;
+    const existing = await Comment.find({ room }).lean();
+    const texts = [content, ...existing.map(c => c.content)];
+
+    // call HF Inference API
+    const { data: embeddings } = await axios.post(
+      // router URL + pipeline path
+      `${HF_URL}/${MODEL}/pipeline/feature-extraction`,
+      { inputs: texts },
+      { headers: { Authorization: `Bearer ${HF_TOKEN}` } }
+    );
+
+    const [embNew, ...embs] = embeddings;
+    let best = { idx: -1, sim: -1 };
+    embs.forEach((emb, i) => {
+      const sim = cosineSimilarity(embNew, emb);
+      if (sim > best.sim) best = { idx: i, sim };
+    });
+
+    if (best.sim >= 0.8) {
+      return res.json({
+        similar:   true,
+        comment:   existing[best.idx],
+        similarity: best.sim
+      });
+    }
+    res.json({ similar: false });
   } catch (err) {
     next(err);
   }
