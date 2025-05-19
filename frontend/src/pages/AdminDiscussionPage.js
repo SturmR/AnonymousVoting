@@ -48,6 +48,7 @@ function AdminDiscussionPage() {
 	const [sortType, setSortType] = useState('Recent');
 
 	const [watchlistError, setWatchlistError] = useState('');
+  const [nonVotersCount, setNonVotersCount] = useState(0);
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -96,6 +97,14 @@ function AdminDiscussionPage() {
 				} else {
 					setUsersInRoom([]);
 				}
+
+				const votePromises = userIds.map(uid =>
+        	axios.get(`/api/votes?room=${roomId}&user=${uid}`)
+      	);
+
+				const votesRes = await Promise.all(votePromises);
+      	const notVotedCount = votesRes.filter(r => r.data.length === 0).length;
+      	setNonVotersCount(notVotedCount);
 
 			} catch (err) {
 				console.error('Failed to fetch admin discussion data:', err);
@@ -692,6 +701,11 @@ function AdminDiscussionPage() {
 								})}
 							</ul>
 						</div>
+
+						{/* Users who have not voted */}
+						<h3 className="text-xl font-bold mb-4">
+        			Users yet to vote: <strong>{nonVotersCount}</strong>
+      			</h3>
 
 						{/* Watchlist Management */}
 						<div className="mb-8">
