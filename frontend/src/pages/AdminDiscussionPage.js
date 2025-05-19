@@ -1,3 +1,4 @@
+// src/pages/AdminDiscussionPage.js
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, X, Plus, Search, Filter, Trash } from 'react-feather';
 import { useParams, useLocation } from 'react-router-dom';
@@ -135,7 +136,6 @@ function AdminDiscussionPage() {
 		}
 	};
 
-
 	// Remove an option
 	const removeOption = async (optionId) => {
 		try {
@@ -201,7 +201,6 @@ function AdminDiscussionPage() {
 			alert('Server error. Please try again.'); // consistent error message
 		}
 	};
-
 
 	// Remove user from watchlist
 	const removeFromWatchlist = async (userIdToRemove) => {
