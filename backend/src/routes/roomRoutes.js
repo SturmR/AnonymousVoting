@@ -7,6 +7,10 @@ router.get('/', roomController.getAllRooms);
 router.post('/', roomController.createRoom);
 router.get('/:id', roomController.getRoomById);
 router.put('/:id', roomController.updateRoom);
+
+// send reminder emails to non-voters
+router.post('/:id/remind', roomController.remindNonVoters);
+
 router.delete('/:id', roomController.deleteRoom);
 
 module.exports = router; // <- VERY IMPORTANT

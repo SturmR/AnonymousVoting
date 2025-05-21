@@ -49,6 +49,9 @@ function AdminDiscussionPage() {
 	const [sortType, setSortType] = useState('Recent');
 
 	const [watchlistError, setWatchlistError] = useState('');
+  const [nonVotersCount, setNonVotersCount] = useState(0);
+	const [nonVoterIds, setNonVoterIds] = useState([]);
+	const [isSending, setIsSending] = useState(false);
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -85,6 +88,19 @@ function AdminDiscussionPage() {
 				} else {
 					setUsersInRoom([]);
 				}
+
+				const votePromises = userIds.map(uid =>
+        	axios.get(`/api/votes?room=${roomId}&user=${uid}`)
+      	);
+
+				const votesRes = await Promise.all(votePromises);
+      	const notVotedCount = votesRes.filter(r => r.data.length === 0).length;
+      	setNonVotersCount(notVotedCount);
+
+				const nonVoters = userIds.filter((_, i) => votesRes[i].data.length === 0);
+				console.log(nonVoters);
+				setNonVoterIds(nonVoters);
+				console.log(nonVoterIds);
 
 			} catch (err) {
 				console.error('Failed to fetch admin discussion data:', err);
@@ -417,6 +433,7 @@ function AdminDiscussionPage() {
 			alert("Failed to reject the option");
 		}
 	};
+
 	const handleDeleteComment = async (commentId) => {
 		if (!window.confirm('Are you sure you want to delete this comment?')) return;
 		try {
@@ -426,6 +443,27 @@ function AdminDiscussionPage() {
 		console.error('Failed to delete comment:', err);
 		alert('Failed to delete comment.');
 		}
+	};
+
+
+	// handler for the “send email” button
+	const sendReminderEmails = async () => {
+		console.log('About to remind:', nonVoterIds);
+		console.log('Count:', nonVotersCount);
+		if (nonVotersCount === 0) return;
+		setIsSending(true);
+		console.log("isSending");
+		try {
+			await axios.post(
+				`/api/rooms/${roomId}/remind`,
+				{ userIds: nonVoterIds }
+			);
+			alert(`Reminder emails sent to ${nonVotersCount} users.`);
+		} catch (err) {
+			console.error(err);
+			alert('Failed to send reminder emails.');
+		}
+		setIsSending(false);
 	};
 
   const ConfirmationModal = () => {
@@ -471,6 +509,7 @@ function AdminDiscussionPage() {
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && changeVoteUntilDate && votingEndDate && votingStartDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
   const isDropdownInvalid = minOptionsPerVote === 'Select' || maxOptionsPerVote === 'Select' || allowVoteChange === 'select' || allowNewOptions === 'select';
   const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
+
 
 	return (
 		<div className="flex-grow flex flex-col">
@@ -741,6 +780,23 @@ function AdminDiscussionPage() {
 								})}
 							</ul>
 						</div>
+
+						{/* Users who have not voted */}
+						<h3 className="text-xl font-bold mb-4">
+        			Users yet to vote: <strong>{nonVotersCount}</strong>
+      			</h3>
+
+						<button
+							onClick={sendReminderEmails}
+							disabled={nonVotersCount === 0 || isSending}
+							className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+						>
+							{isSending
+								? 'Sending…'
+								: nonVotersCount === 0
+									? 'No one to remind'
+									: `Remind ${nonVotersCount} non-voters`}
+						</button>
 
 						{/* Watchlist Management */}
 						<div className="mb-8">
