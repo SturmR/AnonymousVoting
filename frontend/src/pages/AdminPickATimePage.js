@@ -1,7 +1,7 @@
 // src/pages/AdminPickATimePage.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, X } from 'react-feather';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import DatePicker from "react-datepicker";
 import axios from 'axios';
 import classnames from 'classnames';
@@ -11,6 +11,7 @@ axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000
 function AdminPickATimePage() {
   const { roomId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const userId = queryParams.get('user');
 
@@ -48,7 +49,7 @@ function AdminPickATimePage() {
           const userResponses = await Promise.all(userPromises);
           const participants = userResponses.map(response => response.data);
           setUsersInRoom(participants);
-          const votePromises = userIds.map(userId => axios.get(`/votes?user=${userId}&room=${roomId}`));
+          const votePromises = userIds.map(userId => axios.get(`/api/votes?user=${userId}&room=${roomId}`));
           const voteResponses = await Promise.all(votePromises);
           const usersNotVoted = userIds.filter((userId, index) => {
             const userVote = voteResponses[index].data;
@@ -458,6 +459,12 @@ function AdminPickATimePage() {
 
           {/* Right Section - User Management */}
           <div className="w-full md:w-1/3 p-8">
+            <button 
+              onClick={() => navigate(`/rooms/${roomId}/vote?user=${userId}`)}
+              className="bg-[#1E4A8B] text-white rounded px-4 py-2 mb-8 w-full text-center"  // Changed from bg-navy-blue to #003366
+                  >
+                    Go Back to the Poll
+            </button>
             <div className="mb-8">
               <h3 className="text-xl font-bold mb-4">Users:</h3>
               <ul className="list-disc pl-5 mb-6">

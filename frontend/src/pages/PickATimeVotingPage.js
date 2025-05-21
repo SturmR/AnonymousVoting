@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowRight } from 'react-feather';
 import axios from 'axios';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import classnames from 'classnames';
 
 const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
@@ -11,6 +11,7 @@ axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000
 function PickATimeVotingPage() {
   const { roomId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Parse user ID from URL query parameter
   const queryParams = new URLSearchParams(location.search);
@@ -18,6 +19,7 @@ function PickATimeVotingPage() {
 
   // State for user data - fetch username based on userId
   const [username, setUsername] = useState('Loading...');
+  const [user, setUser] = useState(null);
   useEffect(() => {
     if (!userId) {
       setUsername('Anonymous / No User ID');
@@ -27,6 +29,7 @@ function PickATimeVotingPage() {
     axios.get(`/api/users/${userId}`)
       .then(res => {
         setUsername(res.data.username);
+        setUser(res.data);
       })
       .catch(err => {
         console.error("Error fetching username:", err);
@@ -347,6 +350,14 @@ function PickATimeVotingPage() {
 
         {/* Right Section - Info */}
         <div className="w-full md:w-1/3 p-8">
+          {user?.isAdmin && (
+            <button
+              onClick={() => navigate(`/admin/pickatime/${roomId}?user=${userId}`)} // Pass userId
+              className="bg-[#1E4A8B] text-white rounded px-4 py-2 mb-8 w-full text-center"  // Changed from bg-navy-blue to #003366
+            >
+              Go to Admin Panel
+            </button>
+          )}
           <div className="mb-8">
             <h3 className="text-xl font-bold mb-2">Welcome, {username}</h3>
           </div>

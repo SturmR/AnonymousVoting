@@ -256,9 +256,6 @@ function DiscussionRoom() {
     }
   };
 
-  const goToAdminPanel = () => {
-    navigate(`/admin/discussion/${roomId}`);
-  };
 
   if (!room || !pollInfo) {
     return <div className="p-8">Loading room details...</div>
@@ -438,7 +435,7 @@ function DiscussionRoom() {
             <div className="w-full md:w-1/3 p-8 flex flex-col items-start">
               {user?.isAdmin && (
                 <button
-                  onClick={goToAdminPanel}
+                  onClick={() => navigate(`/admin/discussion/${roomId}?user=${userId}`)} // Pass userId
                   className="bg-[#1E4A8B] text-white rounded px-4 py-2 mb-8 w-full text-center"  // Changed from bg-navy-blue to #003366
                 >
                   Go to Admin Panel

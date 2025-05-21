@@ -112,7 +112,8 @@ function PickATime() {
         room:     createdRoomId,
         username: adminUsername,
         _id:      adminGeneratedId,
-        email:  `${adminUsername}@example.com` //TODO: replace with actual
+        email:  `${adminUsername}@example.com`, //TODO: replace with actual
+        isAdmin: true
       });
       const adminId = adminGeneratedId;
 
@@ -172,7 +173,7 @@ function PickATime() {
       },
       ...voterData.map(u => ({
         label: u.email,
-        url:   `${window.location.origin}/rooms/${createdRoomId}?user=${u.id}`
+        url:   `${window.location.origin}/rooms/${createdRoomId}/vote?user=${u.id}`
       }))
     ];
     setGeneratedLinks(links);
