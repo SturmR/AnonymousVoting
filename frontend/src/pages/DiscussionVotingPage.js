@@ -110,7 +110,7 @@ function DiscussionVotingPage() {
   }, [roomId]);
   useEffect(() => {
     if (pollInfo) updateVotingTimeRemaining();
-}, [pollInfo]);
+  }, [pollInfo]);
 
   
   const toggleOption = (optionId) => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowRight } from 'react-feather';
 import axios from 'axios';
 import { useParams, useLocation } from 'react-router-dom';
-import classnames from 'classnames'; // Use classnames instead
+import classnames from 'classnames';
 
 const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
@@ -17,21 +17,20 @@ function PickATimeVotingPage() {
   const userId = queryParams.get('user');
 
   // State for user data - fetch username based on userId
-  const [username, setUsername] = useState('Loading...'); // Show loading state initially
+  const [username, setUsername] = useState('Loading...');
   useEffect(() => {
-    console.log("Fetching username for userId:", userId);
     if (!userId) {
-      setUsername('Anonymous / No User ID'); // Handle case where user ID is missing
+      setUsername('Anonymous / No User ID');
       console.warn("No user ID found in URL query parameter '?user='");
       return;
     }
     axios.get(`/api/users/${userId}`)
       .then(res => {
-        setUsername(res.data.username); // Use the fetched username
+        setUsername(res.data.username);
       })
       .catch(err => {
         console.error("Error fetching username:", err);
-        setUsername('Unknown User'); // Show error state
+        setUsername('Unknown User');
       });
   }, [userId]);
 
@@ -43,12 +42,17 @@ function PickATimeVotingPage() {
     votesEditableUntil: null,
   });
   const [hasVoted, setHasVoted] = useState(false);
+  const [votingTimeRemaining, setVotingTimeRemaining] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+  });
   const [selectedSlots, setSelectedSlots] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
   const [dates, setDates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [room,    setRoom]    = useState(null);
+  const [room, setRoom] = useState(null);
   const [bgColorIndex, setBgColorIndex] = useState(0);
 
   // Helper function to format date for display
@@ -78,7 +82,22 @@ function PickATimeVotingPage() {
     } catch {
       return 'Invalid Time';
     }
+  };
 
+  const updateVotingTimeRemaining = () => {
+    if (!pollInfo) return;
+    const now = new Date();
+
+    // Discussion time remaining
+    const votingDiff = pollInfo.votingEnds - now;
+    if (votingDiff > 0) {
+      const days = Math.floor(votingDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((votingDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((votingDiff % (1000 * 60 * 60)) / (1000 * 60));
+      setVotingTimeRemaining({ days, hours, minutes });
+    } else {
+      setVotingTimeRemaining({ days: 0, hours: 0, minutes: 0 });
+    }
   };
 
   // Function to generate the time grid data
@@ -125,26 +144,25 @@ function PickATimeVotingPage() {
 
     // Convert uniqueTimes strings back to Date objects for easier use
     const timeSlotDates = uniqueTimes.map(timeString => {
-      const today = new Date(); // Use today's date, we only care about the time.
+      const today = new Date();
       const [hours, minutes] = timeString.split(':').map(Number);
-      today.setHours(hours, minutes, 0, 0); // Set the hours and minutes
+      today.setHours(hours, minutes, 0, 0);
       return today;
     });
     setTimeSlots(timeSlotDates);
 
   }, []);
 
-
   // Fetch poll data
   useEffect(() => {
     const fetchPollData = async () => {
       try {
         const { data: roomData } = await axios.get(`/api/rooms/${roomId}`);
-        setRoom(roomData); // Store full room data
+        setRoom(roomData);
         setQuestion(roomData.title);
         setPollInfo({
           votingBegins: new Date(roomData.votingStart),
-          votingEnds:    new Date(roomData.votingEnd),
+          votingEnds: new Date(roomData.votingEnd),
           canEditVote: roomData.canEditVote,
           votesEditableUntil: new Date(roomData.editVoteUntil),
         });
@@ -153,10 +171,10 @@ function PickATimeVotingPage() {
           axios.get(`/api/votes?room=${roomId}&user=${userId}`)
         ]);
         setOptions(optRes.data);
-        setHasVoted(voteRes.data.length > 0);
-
         generateTimeGrid(optRes.data);
-
+        setHasVoted(voteRes.data.length > 0);
+        setSelectedSlots(voteRes.data[0]?.optionList || []);
+        updateVotingTimeRemaining();
       } catch (err) {
         setError('Failed to fetch poll data. Please check the URL and try again.');
         console.error(err);
@@ -165,72 +183,65 @@ function PickATimeVotingPage() {
       }
     };
     fetchPollData();
-  }, [roomId, generateTimeGrid]);
+    const timer = setInterval(updateVotingTimeRemaining, 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, [roomId, generateTimeGrid, userId, updateVotingTimeRemaining]);
+
+  useEffect(() => {
+    if (pollInfo) updateVotingTimeRemaining();
+  }, [pollInfo]);
 
   // Toggle time slot selection
-  const toggleTimeSlot = (dateIndex, timeIndex) => {
-    const date = dates[dateIndex];
-    const time = timeSlots[timeIndex];
-
-    if (!date || !time) return; // prevent errors
-
-    const selectedDateTime = new Date(date);
-    selectedDateTime.setHours(time.getHours(), time.getMinutes());
-    const slotKey = selectedDateTime.toISOString();
-
-    if (selectedSlots.includes(slotKey)) {
-      setSelectedSlots(selectedSlots.filter(slot => slot !== slotKey));
-    } else {
-      setSelectedSlots([...selectedSlots, slotKey]);
-    }
+  const toggleTimeSlot = (optionId) => {
+    setSelectedSlots(prev => {
+      if (prev.includes(optionId)) {
+        return prev.filter(id => id !== optionId);
+      } else {
+        return [...prev, optionId];
+      }
+    });
   };
 
   // Submit vote
   const submitVote = async () => {
-    if (selectedSlots.length === 0) {
-      alert('Please select at least one time slot before submitting your vote.');
+    if (!canSubmit) {
+      alert('Please select time slots according to the rules to submit your vote.');
       return;
     }
 
     try {
-      // Convert selectedSlots back to Option IDs.  Find the option that matches the selected time.
-      const optionIds = selectedSlots.map(selectedTimeISOString => {
-        const selectedTime = new Date(selectedTimeISOString);
-        const matchingOption = options.find(option => {
-          const optionTime = new Date(option.content);
-          return optionTime.getTime() === selectedTime.getTime();
-        });
-        return matchingOption ? matchingOption._id : null; // Return the _id, or null if no match
-      }).filter(id => id !== null); // Filter out any nulls (no matching option)
-
-      //check if user has already voted
-      const existingVoteResponse = await axios.get(`/api/votes?room=${roomId}&user=${userId}`);
-      if (existingVoteResponse.data.length > 0) {
-        //update
-        const voteId = existingVoteResponse.data[0]._id; // There should only be one
-        await axios.put(`/api/votes/${voteId}`, {
+      const existingVote = await axios.get(`/api/votes?room=${roomId}&user=${userId}`);
+      if (existingVote.data.length > 0) {
+        await axios.put(`/api/votes/${existingVote.data[0]._id}`, {
           room: roomId,
           user: userId,
-          optionList: optionIds,
+          optionList: selectedSlots
         });
-
       } else {
-        //create
         await axios.post('/api/votes', {
           room: roomId,
           user: userId,
-          optionList: optionIds,
+          optionList: selectedSlots
         });
       }
 
+      // Update local options
+      const updatedOptions = await axios.get(`/api/options?room=${roomId}`);
+      setOptions(updatedOptions.data);
 
-      alert('Your vote has been submitted successfully!');
-      // Optionally, redirect the user or show a confirmation message
+      alert('Vote submitted successfully!');
     } catch (err) {
-      console.error('Error submitting vote:', err);
-      alert('Failed to submit your vote. Please try again.');
+      alert('Failed to submit vote: ' + err.message);
     }
   };
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setBgColorIndex((prevIndex) => (prevIndex + 1) % colors.length);
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   if (loading) {
     return <div className="p-8">Loading poll data...</div>;
@@ -247,6 +258,13 @@ function PickATimeVotingPage() {
   const now = new Date();
   const isVotingActive = now >= pollInfo.votingBegins && now <= pollInfo.votingEnds;
   const votingHasEnded = now > pollInfo.votingEnds;
+  const canSubmit =
+    selectedSlots.length >= room.minOptionsPerVote &&
+    selectedSlots.length <= room.maxOptionsPerVote &&
+    now <= pollInfo.votingEnds &&
+    (pollInfo.canEditVote || !hasVoted) &&
+    now >= pollInfo.votingBegins &&
+    (!pollInfo.canEditVote || now <= pollInfo.votesEditableUntil);
 
   return (
     <div className="flex-grow flex justify-center p-8">
@@ -270,23 +288,25 @@ function PickATimeVotingPage() {
           {/* Time Grid */}
           <div className="grid grid-cols-7 gap-2" style={{ gridTemplateColumns: `repeat(${dates.length}, 1fr)` }}>
             {timeSlots.map((time, rowIndex) => (
-              <React.Fragment key={rowIndex}>
+              <React.Fragment key={`row-${rowIndex}`}> {/* Added a unique key for the row */}
                 {dates.map((date, colIndex) => {
                   const cellDateTime = new Date(date);
                   cellDateTime.setHours(time.getHours(), time.getMinutes());
-                  const slotKey = cellDateTime.toISOString();
-                  const isSelectable = true;
-
+                  const option = options.find(opt => new Date(opt.content).getTime() === cellDateTime.getTime());
+                  const isSelected = selectedSlots.includes(option?.option_id || option?._id);
                   return (
                     <button
-                      key={`${colIndex}-${rowIndex}`}
-                      className={`border rounded p-2 text-center
-                                                ${selectedSlots.includes(slotKey)
-                        ? 'bg-[#3395ff] text-white'
-                        : 'border-[#3395ff] text-[#3395ff] hover:bg-blue-50'
-                        }`}
-                      onClick={() => toggleTimeSlot(colIndex, rowIndex)}
-
+                      key={option?._id || `${colIndex}-${rowIndex}`} // Use option ID or a combination of col/row indexes
+                      className={classnames(
+                        'border rounded p-2 text-center',
+                        (!option || option.isWatchlisted)
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                          : isSelected
+                            ? 'bg-[#3395ff] text-white'
+                            : 'border-[#3395ff] text-[#3395ff] hover:bg-blue-50'
+                      )}
+                      onClick={() => option && !option.isWatchlisted && toggleTimeSlot(option._id)}
+                      disabled={!option || option.isWatchlisted}
                     >
                       {formatTime(time)}
                     </button>
@@ -298,7 +318,7 @@ function PickATimeVotingPage() {
           {/* Selection Requirements */}
           <div className="mt-12">
             <p className="text-lg font-medium">
-              You must select at least {room.minOptionsPerVote}, at most {Math.min(room.maxOptionsPerVote,options.length)} Options to submit your Vote.
+              You must select at least {room.minOptionsPerVote}, at most {Math.min(room.maxOptionsPerVote, options.length)} Options to submit your Vote.
             </p>
             {selectedSlots.length > 0 && (
               <p className="mt-2">
@@ -308,19 +328,17 @@ function PickATimeVotingPage() {
             <button
               className={classnames(
                 "flex items-center justify-center mt-4 px-4 py-2 rounded w-full",
-                isVotingActive
-                  ? 'animate-pulse'
-                  : 'bg-gray-400 text-white cursor-not-allowed'
+                canSubmit ? 'animate-pulse' : 'bg-gray-400 text-white cursor-not-allowed'
               )}
               style={{
-                backgroundColor: isVotingActive ? colors[bgColorIndex] : undefined,
-                color:  isVotingActive ? '#FFFFFF' : '#FFFFFF',
-                  backgroundImage: isVotingActive
-                    ? `linear-gradient(to right, ${colors[bgColorIndex]}, ${colors[(bgColorIndex + 1) % colors.length]})`
-                    : undefined,
-                }}
-              disabled={!isVotingActive}
+                backgroundColor: canSubmit ? colors[bgColorIndex] : undefined,
+                color: canSubmit ? '#FFFFFF' : '#FFFFFF',
+                backgroundImage: canSubmit
+                  ? `linear-gradient(to right, ${colors[bgColorIndex]}, ${colors[(bgColorIndex + 1) % colors.length]})`
+                  : undefined,
+              }}
               onClick={submitVote}
+              disabled={!canSubmit}
             >
               Submit Vote <ArrowRight size={16} className="ml-2" />
             </button>
@@ -341,14 +359,10 @@ function PickATimeVotingPage() {
           </div>
 
           <div className="mb-8">
-            <h3 className="text-xl font-bold mb-2">Voting Status:</h3>
-            {votingHasEnded ? (
-              <p>Voting has ended.</p>
-            ) : isVotingActive ? (
-              <p>Voting is in progress.</p>
-            ) : (
-              <p>Voting has not started yet.</p>
-            )}
+            <h3 className="text-xl font-bold mb-2">Time remaining for voting:</h3>
+            <p className="mb-1">{votingTimeRemaining.days} days</p>
+            <p className="mb-1">{votingTimeRemaining.hours} hours</p>
+            <p className="mb-4">{votingTimeRemaining.minutes} minutes</p>
           </div>
         </div>
       </div>

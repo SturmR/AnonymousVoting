@@ -31,6 +31,7 @@ function AdminDiscussionPage() {
 	const [votingEndDate, setVotingEndDate] = useState(null);
 	const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
   const [activeDatePicker, setActiveDatePicker] = useState(null); 
+  const [showModal, setShowModal] = useState(false);
   const [minOptionsPerVote, setMinOptionsPerVote] = useState('Select');
   const [maxOptionsPerVote, setMaxOptionsPerVote] = useState('Select');
 
@@ -59,24 +60,12 @@ function AdminDiscussionPage() {
 				const { data: room } = await axios.get(`/api/rooms/${roomId}`);
 
 				// 2) Parse & set all your date fields
-				setDiscussionEndDate(
-					room.discussionEnd ? new Date(room.discussionEnd) : null
-				);
-				setVotingStartDate(
-					room.votingStart ? new Date(room.votingStart) : null
-				);
-				setVotingEndDate(
-					room.votingEnd ? new Date(room.votingEnd) : null
-				);
-				setChangeVoteUntilDate(
-					room.editVoteUntil ? new Date(room.editVoteUntil) : null
-				);
-        setMaxOptionsPerVote(
-          room.maxOptionsPerVote ? room.maxOptionsPerVote : 'Select'
-        );
-        setMinOptionsPerVote(
-          room.minOptionsPerVote ? room.minOptionsPerVote : 'Select'
-        );
+				setDiscussionEndDate(room.discussionEnd ? new Date(room.discussionEnd) : null);
+				setVotingStartDate(room.votingStart ? new Date(room.votingStart) : null);
+				setVotingEndDate(room.votingEnd ? new Date(room.votingEnd) : null);
+				setChangeVoteUntilDate(room.editVoteUntil ? new Date(room.editVoteUntil) : null);
+        setMaxOptionsPerVote(room.maxOptionsPerVote===Number.MAX_SAFE_INTEGER ? 'no-limit' : room.maxOptionsPerVote);
+        setMinOptionsPerVote(room.minOptionsPerVote===0 ? 'no-limit' : room.minOptionsPerVote);
 
 				// 3) Toggles & watchlist
 				setAllowNewOptions(room.canAddOption ? 'yes' : 'no');
@@ -262,6 +251,14 @@ function AdminDiscussionPage() {
 
 	// Update room settings
 	const updateRoomSettings = async () => {
+    if(isAnyDateMissing || isVotingTimeInvalid || isChangeVoteTimeInvalid || isDropdownInvalid || isOptionsPerVoteInvalid) {
+      setShowModal(false);
+    } else {
+      setShowModal(true);
+    }
+  }
+  const handleConfirm = async () => {
+    setShowModal(false);
 		try {
 			const payload = {
 				// match your backend property names exactly:
@@ -274,9 +271,7 @@ function AdminDiscussionPage() {
         minOptionsPerVote: minOptionsPerVote === 'no-limit' ? 0 : parseInt(minOptionsPerVote, 10),
         maxOptionsPerVote: maxOptionsPerVote === 'no-limit' ? Number.MAX_SAFE_INTEGER : parseInt(maxOptionsPerVote, 10),
 			};
-
 			await axios.put(`/api/rooms/${roomId}`, payload);
-
 			// Optionally give feedback
 			alert('Settings updated successfully.');
 		} catch (err) {
@@ -450,6 +445,7 @@ function AdminDiscussionPage() {
 		}
 	};
 
+
 	// handler for the “send email” button
 	const sendReminderEmails = async () => {
 		console.log('About to remind:', nonVoterIds);
@@ -470,11 +466,56 @@ function AdminDiscussionPage() {
 		setIsSending(false);
 	};
 
+  const ConfirmationModal = () => {
+      if (!showModal) return null;
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md relative">
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+  
+            <div className="p-6">
+              <h3 className="text-xl font-semibold mb-4">Confirmation</h3>
+              <p className="mb-6">Are you sure that you want to update the room settings with the given features?</p>
+  
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                >
+                  No
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className="px-4 py-2 bg-[#3395ff] text-white rounded hover:bg-[#2980e4]"
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+    
+  const isAnyDateMissing = !discussionEndDate || !votingStartDate || !votingEndDate || (allowVoteChange==='yes' && !changeVoteUntilDate);
+  const isVotingTimeInvalid = votingStartDate && votingEndDate && votingStartDate >= votingEndDate;
+  const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && changeVoteUntilDate && votingEndDate && votingStartDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
+  const isDropdownInvalid = minOptionsPerVote === 'Select' || maxOptionsPerVote === 'Select' || allowVoteChange === 'select' || allowNewOptions === 'select';
+  const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
+
+
 	return (
 		<div className="flex-grow flex flex-col">
 			{/* Header */}
 			<header className="bg-[#3395ff] py-16 text-center">
-				<h1 className="text-white text-4xl font-bold">Discussing Page - Discuss&Vote - Admin Panel</h1>
+				<h1 className="text-white text-4xl font-bold">Discussing Page - Discuss&Vote - Admin Panel {console.log(minOptionsPerVote, maxOptionsPerVote , parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10))}</h1>
 			</header>
 
 			<div className="flex-grow flex justify-center p-8">
@@ -537,6 +578,9 @@ function AdminDiscussionPage() {
 								onChange={(date) => handleDateTimeChange(date, 'voting-end')}
 								id="voting-end"
 							/>
+              {isVotingTimeInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Voting end time must be after voting start time.</p>
+              )}
 
 							{/* Dropdown Selectors */}
 							<div className="flex items-center mb-4">
@@ -571,6 +615,9 @@ function AdminDiscussionPage() {
 								onChange={(date) => handleDateTimeChange(date, 'change-vote-until')}
 								id="change-vote-until"
 							/>
+              {isChangeVoteTimeInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Vote change time must be between voting start and end times.</p>
+              )}
 
               <div className="flex items-center">
                 <label className="w-64 font-medium">Min options per vote: *</label>
@@ -600,6 +647,9 @@ function AdminDiscussionPage() {
                   <option value="no-limit">No Limit</option>
                 </select>
               </div>
+              {isOptionsPerVoteInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Min options per vote must be less than or equal to max.</p>
+              )}
 
 							<button onClick={updateRoomSettings} className="bg-blue-500 text-white rounded px-4 py-2">
 								Update Settings
@@ -856,6 +906,8 @@ function AdminDiscussionPage() {
 					</div>
 				</div>
 			</div>
+      
+      <ConfirmationModal />
 		</div>
 	);
 }

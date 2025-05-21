@@ -49,6 +49,7 @@ function PickATime() {
     const isAnyDateMissing = !votingStartDate || !votingEndDate || (allowVoteChange === 'yes' && !changeVoteUntilDate);
     const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
     const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && votingStartDate && changeVoteUntilDate && votingEndDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
+    const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
     const isEmailsInvalid = emails.length === 0;
     const isDropdownInvalid =
       allowVoteChange === 'Select' ||
@@ -64,6 +65,7 @@ function PickATime() {
     if (isChangeVoteTimeInvalid) error += 'Vote change time limit must be in between voting start time and voting end time.\n';
     if (isEmailsInvalid) error += 'At least one email must be added.\n';
     if (isDropdownInvalid) error += 'All dropdowns must be selected.\n';
+    if (isOptionsPerVoteInvalid) error += 'Minimum options per vote cannot exceed maximum options per vote.\n';
     
     setFormError(error);
     if (!error) {
@@ -365,10 +367,11 @@ function PickATime() {
     setEmails(newEmails);
   };
   
-const isQuestionEmpty = question.trim() === '';
+  const isQuestionEmpty = question.trim() === '';
   const isAnyDateMissing = !votingStartDate || !votingEndDate || (allowVoteChange === 'yes' && !changeVoteUntilDate);
   const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && votingStartDate && changeVoteUntilDate && votingEndDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
+  const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
   const isEmailsInvalid = emails.length === 0;
   const isDropdownInvalid =
       allowVoteChange === 'Select' ||
@@ -454,40 +457,43 @@ const isQuestionEmpty = question.trim() === '';
               )}
 
               <div className="flex items-center margin-between-2">
-                  <label className="w-[400px] font-medium mr-4">Minimum number of Options the Users must vote for:</label>
-                  <select
-                    className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                      attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
-                    }`}                
-                    value={minOptionsPerVote}
-                    onChange={(e) => setMinOptionsPerVote(e.target.value)}
-                  >
-                    <option disabled value="Select">Select</option>
-                    <option value="no-limit">No limit</option>
-                    {[...Array(Math.max(1, options.length)).keys()].map(i =>
-                      <option key={i+1} value={i+1}>{i+1}</option>
-                    ) // TODO: instead of number of options, do like 10-20~
-                    } 
-                  </select>
-                </div>
+                <label className="w-[400px] font-medium mr-4">Minimum number of Options the Users must vote for:</label>
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && minOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}                
+                  value={minOptionsPerVote}
+                  onChange={(e) => setMinOptionsPerVote(e.target.value)}
+                >
+                  <option disabled value="Select">Select</option>
+                  <option value="no-limit">No limit</option>
+                  {[...Array(Math.max(1, options.length)).keys()].map(i =>
+                    <option key={i+1} value={i+1}>{i+1}</option>
+                  ) // TODO: instead of number of options, do like 10-20~
+                  } 
+                </select>
+              </div>
 
-                <div className="flex items-center">
-                  <label className="w-[400px] font-medium mr-4">Maximum number of Options the Users can vote for:</label>
-                  <select
-                    className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
-                      attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  
-                    value={maxOptionsPerVote}
-                    onChange={(e) => setMaxOptionsPerVote(e.target.value)}
-                  >
-                    <option disabled value= "Select">Select</option>
-                    {[...Array(Math.max(1, options.length)).keys()].map(i =>
-                      <option key={i+1} value={i+1}>{i+1}</option>
-                    )}
-                    <option value="no-limit">No Limit</option>
-                  </select>
-                </div>
+              <div className="flex items-center">
+                <label className="w-[400px] font-medium mr-4">Maximum number of Options the Users can vote for:</label>
+                <select
+                  className={`border rounded px-3 py-1 w-24 transition-colors duration-200 ${
+                    attemptedSubmit && maxOptionsPerVote === 'Select' ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                
+                  value={maxOptionsPerVote}
+                  onChange={(e) => setMaxOptionsPerVote(e.target.value)}
+                >
+                  <option disabled value= "Select">Select</option>
+                  {[...Array(Math.max(1, options.length)).keys()].map(i =>
+                    <option key={i+1} value={i+1}>{i+1}</option>
+                  )}
+                  <option value="no-limit">No Limit</option>
+                </select>
+              </div>
+              {isOptionsPerVoteInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Min options per vote must be less than or equal to max.</p>
+              )}
 
               <div className="flex items-center mb-4">
                 <label className="w-[400px] font-medium mr-4">The step size for time options:</label>

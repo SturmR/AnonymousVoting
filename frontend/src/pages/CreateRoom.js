@@ -383,20 +383,13 @@ const handleConfirm = async () => {
   const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && votingStartDate && changeVoteUntilDate && votingEndDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
   const isEmailsInvalid = emails.length === 0;
+  const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && (parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10));
   const isDropdownInvalid =
       allowSubmitOptions === 'Select' ||
       allowVoteChange === 'Select' ||
       minOptionsPerVote === 'Select' ||
       maxOptionsPerVote === 'Select';
   // Combine all validation checks
-  const isFormInvalid =
-      isQuestionEmpty ||
-      isAnyDateMissing ||
-      isDiscussionTimeInvalid ||
-      isVotingTimeInvalid ||
-      isChangeVoteTimeInvalid ||
-      isEmailsInvalid ||
-      isDropdownInvalid;
 
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
@@ -605,6 +598,9 @@ const handleConfirm = async () => {
                   <option value="no-limit">No Limit</option>
                 </select>
               </div>
+              {isOptionsPerVoteInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Min options per vote must be less than or equal to max.</p>
+              )}
             </div>
           </div>
 

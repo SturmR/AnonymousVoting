@@ -1,4 +1,3 @@
-// src/pages/RoomResults.js
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Download, BarChart2, PieChart } from 'react-feather';
@@ -33,22 +32,43 @@ function RoomResults() {
         // Process data
         const optionsWithVotes = optionsRes.data.map(option => ({
           ...option,
-          percentage: Math.round((option.numberOfVotes / votesRes.data.length) * 100) || 0
+          // Calculate percentage based on total votes, default to 0 if no votes
+          percentage: (votesRes.data.length > 0) ? Math.round((option.numberOfVotes / votesRes.data.length) * 100) : 0
         }));
 
-        // Determine winner
-        const winner = [...optionsWithVotes].sort((a, b) => b.numberOfVotes - a.numberOfVotes)[0];
+        // Determine winners (can be multiple)
+        const winners = [];
+        if (optionsWithVotes && optionsWithVotes.length > 0) {
+          // Sort to find the highest vote count
+          optionsWithVotes.sort((a, b) => b.numberOfVotes - a.numberOfVotes);
+          const maxVotes = optionsWithVotes[0].numberOfVotes;
+
+          // Collect all options that have the maximum vote count
+          for (const option of optionsWithVotes) {
+            if (option.numberOfVotes === maxVotes) {
+              winners.push(option);
+            } else {
+              // Since the array is sorted, we can stop once we find an option with fewer votes
+              break;
+            }
+          }
+        }
+
+        // Filter out options with 0 votes for chart display
+        const filteredOptionsForCharts = optionsWithVotes.filter(opt => opt.numberOfVotes > 0);
 
         setStats({
           room: roomRes.data,
-          winner,
-          options: optionsWithVotes,
+          winners, // Now an array
+          options: optionsWithVotes, // Keep all options for detailed results
           totalUsers: roomRes.data.userList?.length || 0,
           totalVotes: votesRes.data.length,
           totalOptions: optionsRes.data.length,
           totalComments: commentsRes.data.length,
-          voteDistribution: optionsWithVotes.map(opt => ({
-            name: opt.content,
+          roomType: roomRes.data.type,
+          // Use filtered options for vote distribution in charts
+          voteDistribution: filteredOptionsForCharts.map(opt => ({
+            name: roomRes.data.type === 'DiscussAndVote' ? opt.content : formatDate(opt.content),
             votes: opt.numberOfVotes,
             percentage: opt.percentage
           }))
@@ -63,11 +83,58 @@ function RoomResults() {
     fetchResults();
   }, [roomId]);
 
+  // Formats date string to "DD/MM/YYYY, HH:MM" for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    // Convert to local time by adjusting for timezone offset
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    const formattedDate = localDate.toLocaleDateString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    }).replace(/\./g, '/'); // Replace dots with slashes for DD/MM/YYYY
+    const formattedTime = localDate.toLocaleTimeString('de-DE', {
+      hour: '2-digit', minute: '2-digit'
+    });
+    return `${formattedDate}, ${formattedTime}`;
+  };
+
+  // Formats date string to "DD/MM/YYYY\nHH:MM" for chart labels
+  const formatChartLabel = (dateString) => {
+    const date = new Date(dateString);
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    const formattedDate = localDate.toLocaleDateString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    }).replace(/\./g, '/');
+    const formattedTime = localDate.toLocaleTimeString('de-DE', {
+      hour: '2-digit', minute: '2-digit'
+    });
+    return `${formattedDate}\n${formattedTime}`;
+  };
+
+  // Helper function to render winner name with multiline support for PickATime
+  const renderWinnerName = (winner) => {
+    if (stats.roomType === 'DiscussAndVote') {
+      return winner.content;
+    } else { // PickATime
+      const formattedLabel = formatChartLabel(winner.content); // "DD/MM/YYYY\nHH:MM"
+      const [datePart, timePart] = formattedLabel.split('\n');
+      return (
+        <>
+          <br />
+          {datePart} {timePart}
+        </>
+      );
+    }
+  };
+
   const handleDownload = () => {
-    // Generate CSV content
+    // Generate CSV content from all options (not just filtered ones)
     const csvContent = [
       ['Option', 'Votes', 'Percentage'],
-      ...stats.voteDistribution.map(opt => [opt.name, opt.votes, `${opt.percentage}%`])
+      ...stats.options.map(opt => [
+        stats.roomType === 'DiscussAndVote' ? opt.content : formatDate(opt.content),
+        opt.numberOfVotes,
+        `${opt.percentage}%`
+      ])
     ].map(e => e.join(',')).join('\n');
 
     // Create download link
@@ -83,7 +150,8 @@ function RoomResults() {
 
   if (loading) return <div className="p-8 text-center">Loading results...</div>;
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
-  if (!stats) return <div className="p-8">No results found</div>;
+  // Ensure stats and voteDistribution exist before rendering charts
+  if (!stats || !stats.voteDistribution) return <div className="p-8">No results found or data is incomplete.</div>;
 
   return (
     <div className="flex-grow flex justify-center p-4 md:p-8 bg-gray-50">
@@ -100,11 +168,29 @@ function RoomResults() {
             {/* Winner Banner */}
             <div className="mb-8 p-4 bg-green-50 border rounded-lg">
               <h2 className="text-3xl font-bold ">
-                Winner: {stats.winner.content} {stats.options[0].content} {stats.options[0].votes}
+                Winner{stats.winners.length > 1 ? 's' : ''}:
+                {stats.winners.length > 0 ? (
+                  stats.winners.map((winner, index) => (
+                    <React.Fragment key={winner._id}>
+                      {renderWinnerName(winner)}
+                      {index < stats.winners.length - 1 ? ', ' : ''}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <span>No clear winner yet.</span>
+                )}
+                {stats.winners.length > 0 && stats.winners[0].numberOfVotes > 0 ? ' 🎉' : ''}
               </h2>
-              <p className=" mt-2">
-                {stats.winner.percentage}% of votes ({stats.winner.numberOfVotes} votes)
-              </p>
+              {stats.winners.length > 0 && stats.winners[0].numberOfVotes > 0 && (
+                <p className=" mt-2">
+                  {stats.winners.length > 1
+                    ? `All winners have ${stats.winners[0].percentage}% of votes (${stats.winners[0].numberOfVotes} votes)`
+                    : `${stats.winners[0].percentage}% of votes (${stats.winners[0].numberOfVotes} votes)`}
+                </p>
+              )}
+              {stats.winners.length === 0 && stats.totalVotes === 0 && (
+                <p className="mt-2">No votes have been cast yet.</p>
+              )}
             </div>
 
             {/* Chart Toggle */}
@@ -129,7 +215,11 @@ function RoomResults() {
                 {chartType === 'bar' ? (
                   <BarChart data={stats.voteDistribution}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="name"
+                            width={24}
+                            height={24}
+                            padding={{ left: 20, right: 20 }}
+                            />
                     <YAxis />
                     <Tooltip formatter={(value) => [`${value} votes`, 'Votes']} />
                     <Legend />
@@ -165,7 +255,7 @@ function RoomResults() {
               <h3 className="text-xl font-bold mb-2">Detailed Results:</h3>
               {stats.options.map((option, index) => (
                 <div key={option._id} className="flex items-center">
-                  <div className="w-24 font-medium">{option.content}</div>
+                  <div className="w-24 font-medium">{stats.roomType === 'DiscussAndVote' ? option.content : formatDate(option.content)}</div>
                   <div className="flex-1 mx-2">
                     <div className="h-4 rounded-full bg-gray-200 overflow-hidden">
                       <div
@@ -187,15 +277,15 @@ function RoomResults() {
 
           {/* Sidebar Stats */}
           <div className="w-full md:w-1/3 p-8">
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold mb-4">Totals:</h3>
-            <ul className="list-disc pl-5 mb-6 space-y-2">
-              <li className="font-medium">Number of Users: {stats.totalUsers}</li>
-              <li className="font-medium">Number of Votes: {stats.totalVotes}</li>
-              <li className="font-medium">Number of Options: {stats.totalOptions}</li>
-              <li className="font-medium">Number of Comments: {stats.totalComments}</li>
-            </ul>
-          </div>
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold mb-4">Totals:</h3>
+              <ul className="list-disc pl-5 mb-6 space-y-2">
+                <li className="font-medium">Number of Users: {stats.totalUsers}</li>
+                <li className="font-medium">Number of Votes: {stats.totalVotes}</li>
+                <li className="font-medium">Number of Options: {stats.totalOptions}</li>
+                <li className="font-medium">Number of Comments: {stats.totalComments}</li>
+              </ul>
+            </div>
 
             <div className="mb-8">
               <h3 className="text-2xl font-bold mb-4">Export</h3>
