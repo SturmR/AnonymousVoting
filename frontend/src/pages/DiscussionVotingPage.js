@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, ArrowRight, X } from 'react-feather';
 import axios from 'axios';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import classnames from 'classnames'; // Use classnames instead
+import confetti from 'canvas-confetti';
 
 const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
@@ -112,7 +113,32 @@ function DiscussionVotingPage() {
     if (pollInfo) updateVotingTimeRemaining();
   }, [pollInfo]);
 
-  
+  /* One-shot “fountain” that lasts ~1.5 s */
+  const fireConfetti = useCallback(() => {
+    const DURATION = 1500;            // total runtime (ms)
+    const end = Date.now() + DURATION;
+
+    (function frame() {
+      /* 7 small bursts per animation frame → continuous stream */
+      confetti({
+        particleCount: 7,
+        startVelocity: 30,
+        spread: 80,        // width of the plume
+        angle: 90,         // 90° = straight up
+        origin: {
+          x: Math.random(), // random left-to-right
+          y: 1              // 1 = bottom of the viewport
+        },
+        scalar: 0.8,        // slightly smaller pieces
+        ticks: 200          // lifetime of each particle
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    })();
+  }, []);
+
   const toggleOption = (optionId) => {
     setSelectedOptions(prev => {
       if (prev.includes(optionId)) {
@@ -147,11 +173,15 @@ function DiscussionVotingPage() {
         optionList: selectedOptions,
         user: userId
       });
+
+      setHasVoted(true);
+
       // Update local options with new vote counts
       const updatedOptions = await axios.get(`/api/options?room=${roomId}`);
       setOptions(updatedOptions.data);
             
       alert('Vote submitted successfully!');
+      fireConfetti();
     } catch (err) {
       alert('Failed to submit vote: ' + err.message);
     }
