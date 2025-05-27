@@ -3,6 +3,7 @@ import { ArrowRight } from 'react-feather';
 import axios from 'axios';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import classnames from 'classnames';
+import confetti from 'canvas-confetti';
 
 const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
@@ -87,21 +88,22 @@ function PickATimeVotingPage() {
     }
   };
 
-  const updateVotingTimeRemaining = () => {
+  const updateVotingTimeRemaining = useCallback(() => {
     if (!pollInfo) return;
-    const now = new Date();
 
-    // Discussion time remaining
+    const now        = new Date();
     const votingDiff = pollInfo.votingEnds - now;
+
     if (votingDiff > 0) {
-      const days = Math.floor(votingDiff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((votingDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const days    = Math.floor(votingDiff / (1000 * 60 * 60 * 24));
+      const hours   = Math.floor((votingDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((votingDiff % (1000 * 60 * 60)) / (1000 * 60));
       setVotingTimeRemaining({ days, hours, minutes });
     } else {
       setVotingTimeRemaining({ days: 0, hours: 0, minutes: 0 });
     }
-  };
+  }, [pollInfo]);   // ← stable unless pollInfo itself changes
+
 
   // Function to generate the time grid data
   const generateTimeGrid = useCallback((availableOptions) => {
@@ -188,11 +190,37 @@ function PickATimeVotingPage() {
     fetchPollData();
     const timer = setInterval(updateVotingTimeRemaining, 60000); // Update every minute
     return () => clearInterval(timer);
-  }, [roomId, generateTimeGrid, userId, updateVotingTimeRemaining]);
+  }, [roomId, generateTimeGrid, userId]);
 
   useEffect(() => {
     if (pollInfo) updateVotingTimeRemaining();
   }, [pollInfo]);
+
+  /* One-shot “fountain” that lasts ~1.5 s */
+  const fireConfetti = useCallback(() => {
+    const DURATION = 1500;            // total runtime (ms)
+    const end = Date.now() + DURATION;
+
+    (function frame() {
+      /* 7 small bursts per animation frame → continuous stream */
+      confetti({
+        particleCount: 7,
+        startVelocity: 30,
+        spread: 80,        // width of the plume
+        angle: 90,         // 90° = straight up
+        origin: {
+          x: Math.random(), // random left-to-right
+          y: 1              // 1 = bottom of the viewport
+        },
+        scalar: 0.8,        // slightly smaller pieces
+        ticks: 200          // lifetime of each particle
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    })();
+  }, []);
 
   // Toggle time slot selection
   const toggleTimeSlot = (optionId) => {
@@ -228,11 +256,14 @@ function PickATimeVotingPage() {
         });
       }
 
+      setHasVoted(true);
+
       // Update local options
       const updatedOptions = await axios.get(`/api/options?room=${roomId}`);
       setOptions(updatedOptions.data);
 
       alert('Vote submitted successfully!');
+      fireConfetti();
     } catch (err) {
       alert('Failed to submit vote: ' + err.message);
     }
@@ -245,6 +276,12 @@ function PickATimeVotingPage() {
 
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    const id = setInterval(updateVotingTimeRemaining, 60_000); // once a minute
+    updateVotingTimeRemaining();                               // run immediately
+    return () => clearInterval(id);
+  }, [updateVotingTimeRemaining]);
 
   if (loading) {
     return <div className="p-8">Loading poll data...</div>;
@@ -269,6 +306,8 @@ function PickATimeVotingPage() {
     now >= pollInfo.votingBegins &&
     (!pollInfo.canEditVote || now <= pollInfo.votesEditableUntil);
 
+
+  
   return (
     <div className="flex-grow flex justify-center p-8">
       <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
@@ -296,7 +335,7 @@ function PickATimeVotingPage() {
                   const cellDateTime = new Date(date);
                   cellDateTime.setHours(time.getHours(), time.getMinutes());
                   const option = options.find(opt => new Date(opt.content).getTime() === cellDateTime.getTime());
-                  const isSelected = selectedSlots.includes(option?.option_id || option?._id);
+                  const isSelected = selectedSlots.includes(option?._id);
                   return (
                     <button
                       key={option?._id || `${colIndex}-${rowIndex}`} // Use option ID or a combination of col/row indexes
