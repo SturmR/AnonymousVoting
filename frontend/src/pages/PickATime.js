@@ -169,7 +169,7 @@ function PickATime() {
       const links = [
       {
         label: 'Admin Link',
-        url:   `${window.location.origin}/admin/pickatime/${createdRoomId}?user=${adminId}`
+        url:   `${window.location.origin}/rooms/${createdRoomId}?user=${adminId}`
       },
       ...voterData.map(u => ({
         label: u.email,
