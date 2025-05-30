@@ -91,6 +91,11 @@ function DiscussionVotingPage() {
           discussionBegins: new Date(roomData.discussionStart),
           discussionEnds:     new Date(roomData.discussionEnd),
         });
+        if (userId && !roomData.userList.includes(userId)) {
+          console.warn(`User ID ${userId} not found in room ${roomId}'s userList. Redirecting to error page.`);
+          navigate('/error');
+          return; // Stop further execution in this try block
+        }
         const [optRes, comRes, voteRes] = await Promise.all([
           axios.get(`/api/options?room=${roomId}`),
           axios.get(`/api/comments?room=${roomId}`),
@@ -286,7 +291,6 @@ function DiscussionVotingPage() {
               <p className="mb-1">Voting begins: {formatDate(pollInfo.votingBegins)}</p>
               <p className="mb-1">Voting ends: {formatDate(pollInfo.votingEnds)}</p>
               { pollInfo.votesEditableUntil ? (<p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)}</p> ) : (<p className="mb-4">Votes are not editable</p>) }
-              <p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)}</p>
             </div>
 
             <div className="mb-8">

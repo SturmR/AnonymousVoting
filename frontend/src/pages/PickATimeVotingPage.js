@@ -171,6 +171,11 @@ function PickATimeVotingPage() {
           canEditVote: roomData.canEditVote,
           votesEditableUntil: new Date(roomData.editVoteUntil),
         });
+        if (userId && !roomData.userList.includes(userId)) {
+          console.warn(`User ID ${userId} not found in room ${roomId}'s userList. Redirecting to error page.`);
+          navigate('/error');
+          return; // Stop further execution in this try block
+        }
         const [optRes, voteRes] = await Promise.all([
           axios.get(`/api/options?room=${roomId}`),
           axios.get(`/api/votes?room=${roomId}&user=${userId}`)

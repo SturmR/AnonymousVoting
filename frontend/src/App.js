@@ -12,6 +12,7 @@ import PickATimeVotingPage    from './pages/PickATimeVotingPage';    // P@T voti
 import Result                 from './pages/Result';                 // final results
 import AdminDiscussionPage    from './pages/AdminDiscussionPage';    // admin D&V
 import AdminPickATimePage     from './pages/AdminPickATimePage';     // admin P@T
+import ErrorPage              from './pages/ErrorPage';              // error page
 
 function RoomVoteRouter() {
   const { roomId } = useParams();
@@ -48,6 +49,9 @@ export default function App() {
         {/* admin panels */}
         <Route path="/admin/discussion/:roomId" element={<AdminDiscussionPage />} />
         <Route path="/admin/pickatime/:roomId"  element={<AdminPickATimePage />} />
+
+        <Route path="/error" element={<ErrorPage />} />
+        <Route path="*" element={<ErrorPage />} /> 
       </Routes>
     </Router>
   );

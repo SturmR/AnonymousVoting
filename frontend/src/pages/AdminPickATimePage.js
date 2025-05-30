@@ -14,6 +14,20 @@ function AdminPickATimePage() {
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(location.search);
   const userId = queryParams.get('user');
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    if (!userId) {
+      console.warn("No user ID found in URL query parameter '?user='");
+      return;
+    }
+    axios.get(`/api/users/${userId}`)
+      .then(res => {
+        setUser(res.data);
+      })
+      .catch(err => {
+        console.error("Error fetching username:", err);
+      });
+  }, [userId]);
 
   const [options, setOptions] = useState([]);
   const [usersInRoom, setUsersInRoom] = useState([]);
@@ -33,7 +47,31 @@ function AdminPickATimePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: room } = await axios.get(`/api/rooms/${roomId}`);
+				// 1) Load the room metadata
+        if (!userId) {
+          console.warn("No user ID found in URL query parameter '?user='");
+          navigate('/error'); // Or some other appropriate redirection
+          return;
+        }
+        
+        // Check if the room exists and if the user is part of it
+				const { data: room } = await axios.get(`/api/rooms/${roomId}`);
+        if (userId && !room.userList.includes(userId))  {
+          console.warn(`User ID ${userId} not found in room ${roomId}'s userList. Redirecting to error page.`);
+          navigate('/error');
+          return; // Stop further execution
+        }
+
+        // Fetch the user details to check if they are an admin
+        const userRes = await axios.get(`/api/users/${userId}`);
+        const currentUser = userRes.data;
+        setUser(currentUser); // Make sure this state is updated
+
+        if (!currentUser.isAdmin) {
+          console.warn(`User ID ${userId} not found in room ${roomId}'s userList. Redirecting to error page.`);
+          navigate('/error');
+          return; // Stop further ex
+        }
         setVotingEndDate(room.votingEnd ? new Date(room.votingEnd) : null);
         setChangeVoteUntilDate(room.editVoteUntil ? new Date(room.editVoteUntil) : null);
         setMinOptionsPerVote(room.minOptionsPerVote ? room.minOptionsPerVote : 'Select');

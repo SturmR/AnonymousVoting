@@ -102,6 +102,11 @@ function DiscussionRoom() {
           votesEditableUntil: new Date(roomData.editVoteUntil),
           discussionEnds: new Date(roomData.discussionEnd),
         });
+        if (userId && !roomData.userList.includes(userId)) {
+          console.warn(`User ID ${userId} not found in room ${roomId}'s userList. Redirecting to error page.`);
+          navigate('/error');
+          return; // Stop further execution in this try block
+        }
         const [optRes, comRes] = await Promise.all([
           axios.get(`/api/options?room=${roomId}`),
           axios.get(`/api/comments?room=${roomId}`)
@@ -325,6 +330,7 @@ function DiscussionRoom() {
                 <h3 className="text-xl font-bold">Comments</h3>
                 <span className="text-gray-500">{comments.filter((c) => !c.isWatchlisted).length} comments</span>
               </div>
+              {(timeRemaining.days>0 || timeRemaining.hours>0 || timeRemaining.minutes>0) && (
               <div className="border border-gray-300 rounded-lg p-4 mb-4 bg-white">
                 <div className="mb-4">
                   {/* Display fetched username */}
@@ -374,6 +380,7 @@ function DiscussionRoom() {
                   </div>
                 </div>
               </div>
+              )}
 
               <div className="flex mb-6">
                 <div className="relative flex-grow mr-2">
