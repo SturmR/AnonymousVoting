@@ -57,7 +57,10 @@ function PickATimeVotingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [room, setRoom] = useState(null);
-  const [bgColorIndex, setBgColorIndex] = useState(0);
+  const [bgColorIndex, setBgColorIndex] = useState(0);  
+  const [isVotingReady, setIsVotingReady] = useState(false); // Controls rendering of main content
+  const [showVotingNotStartedModal, setShowVotingNotStartedModal] = useState(false); // Controls blocking modal visibility
+  
 
   // Helper function to format date for display
   const formatDate = (date) => {
@@ -176,14 +179,33 @@ function PickATimeVotingPage() {
           navigate('/error');
           return; // Stop further execution in this try block
         }
-        const [optRes, voteRes] = await Promise.all([
-          axios.get(`/api/options?room=${roomId}`),
-          axios.get(`/api/votes?room=${roomId}&user=${userId}`)
-        ]);
-        setOptions(optRes.data);
-        generateTimeGrid(optRes.data);
-        setHasVoted(voteRes.data.length > 0);
-        setSelectedSlots(voteRes.data[0]?.optionList || []);
+        
+        const userResponse = await axios.get(`/api/users/${userId}`);
+        const user = userResponse.data;
+        const now = new Date();
+        const votingHasStarted = new Date(roomData.votingStart) <= now;
+        const votingHasEnded = new Date(roomData.votingEnd) <= now;
+
+        if (votingHasEnded) { // navigate to the results
+          alert('Voting has ended. Redirecting to results page.');
+          navigate(`/rooms/${roomId}/results`);
+          return; // Stop further execution in this try block
+        } else if (!votingHasStarted && !user?.isAdmin) {
+          setShowVotingNotStartedModal(true);
+          setIsVotingReady(false); 
+          return; // Stop further execution if discussion hasn't started
+        } else {
+          setShowVotingNotStartedModal(false);
+          setIsVotingReady(true);
+          const [optRes, voteRes] = await Promise.all([
+            axios.get(`/api/options?room=${roomId}`),
+            axios.get(`/api/votes?room=${roomId}&user=${userId}`)
+          ]);
+          setOptions(optRes.data);
+          generateTimeGrid(optRes.data);
+          setHasVoted(voteRes.data.length > 0);
+          setSelectedSlots(voteRes.data[0]?.optionList || []);
+        }
         updateVotingTimeRemaining();
       } catch (err) {
         setError('Failed to fetch poll data. Please check the URL and try again.');
@@ -312,7 +334,14 @@ function PickATimeVotingPage() {
     (!pollInfo.canEditVote || now <= pollInfo.votesEditableUntil);
 
 
-  
+  if (!isVotingReady && showVotingNotStartedModal) {
+    return (
+      <VotingNotStartedModal
+        show={true}
+        votingStartTime={pollInfo?.votingBegins}
+      />
+    );
+  }
   return (
     <div className="flex-grow flex justify-center p-8">
       <div className="max-w-6xl w-full border border-dashed border-gray-300 rounded-lg flex flex-col md:flex-row">
@@ -426,4 +455,32 @@ function PickATimeVotingPage() {
 }
 
 export default PickATimeVotingPage;
+
+
+const VotingNotStartedModal = ({ show, votingStartTime }) => {
+  if (!show) return null;
+
+  const formattedTime = votingStartTime ? votingStartTime.toLocaleString('de-DE', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false
+  }).replace(/\./g, '/') : 'N/A';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Voting Not Started Yet</h2>
+        <p className="text-gray-600 mb-6">
+          The voting for this room is scheduled to begin at:
+          <br />
+          <strong className="text-[#3395ff]">{formattedTime}</strong>
+        </p>
+        <p className="text-gray-600">
+          Please wait until the host starts the voting process.
+        </p>
+      </div>
+    </div>
+  );
+};
+
 

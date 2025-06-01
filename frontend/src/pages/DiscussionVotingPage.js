@@ -20,6 +20,7 @@ function DiscussionVotingPage() {
   
   // State for user data - fetch username based on userId
   const [username, setUsername] = useState('Loading...'); // Show loading state initially
+  const [user, setUser] = useState(null); // Placeholder for user data
   useEffect(() => {
     if (!userId) {
       setUsername('Anonymous / No User ID'); // Handle case where user ID is missing
@@ -29,6 +30,7 @@ function DiscussionVotingPage() {
     axios.get(`/api/users/${userId}`)
          .then(res => {
             setUsername(res.data.username); // Use the fetched username
+            setUser(res.data); // Store user data if needed later
             // Store nickname locally if needed, but use userId for backend interactions
             const key = `room_${roomId}_nickname_for_${userId}`;
             localStorage.setItem(key, res.data.username);
@@ -50,6 +52,9 @@ function DiscussionVotingPage() {
   const [userToken, setUserToken] = useState(null); // Placeholder if needed later
   const [bgColorIndex, setBgColorIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState([]);
+  const [isVotingReady, setIsVotingReady] = useState(false); // Controls rendering of main content
+  const [showVotingNotStartedModal, setShowVotingNotStartedModal] = useState(false); // Controls blocking modal visibility
+
   
   // Update time remaining calculations
   const updateVotingTimeRemaining = () => {
@@ -96,14 +101,33 @@ function DiscussionVotingPage() {
           navigate('/error');
           return; // Stop further execution in this try block
         }
-        const [optRes, comRes, voteRes] = await Promise.all([
-          axios.get(`/api/options?room=${roomId}`),
-          axios.get(`/api/comments?room=${roomId}`),
-          axios.get(`/api/votes?room=${roomId}&user=${userId}`)
-        ]);
-        setOptions(optRes.data);
-        setHasVoted(voteRes.data.length > 0);
-        setSelectedOptions(voteRes.data[0]?.optionList || []);
+        const userResponse = await axios.get(`/api/users/${userId}`);
+        const user = userResponse.data;
+        const now = new Date();
+        const votingHasStarted = new Date(roomData.votingStart) <= now;
+        const votingHasEnded = new Date(roomData.votingEnd) <= now;
+        alert(!user?.isAdmin);
+
+        if (votingHasEnded) { // navigate to the results
+          alert('Voting has ended. Redirecting to results page.');
+          navigate(`/rooms/${roomId}/results`);
+          return; // Stop further execution in this try block
+        } else if (!votingHasStarted && !user?.isAdmin) {
+          setShowVotingNotStartedModal(true);
+          setIsVotingReady(false); 
+          return; // Stop further execution if discussion hasn't started
+        } else {
+          setShowVotingNotStartedModal(false);
+          setIsVotingReady(true);
+          const [optRes, comRes, voteRes] = await Promise.all([
+            axios.get(`/api/options?room=${roomId}`),
+            axios.get(`/api/comments?room=${roomId}`),
+            axios.get(`/api/votes?room=${roomId}&user=${userId}`)
+          ]);
+          setOptions(optRes.data);
+          setHasVoted(voteRes.data.length > 0);
+          setSelectedOptions(voteRes.data[0]?.optionList || []);
+        }
         updateVotingTimeRemaining(); // Initial calculation
       } catch (err) {
         console.error('Error fetching initial room data:', err);
@@ -203,6 +227,14 @@ function DiscussionVotingPage() {
                    ((!pollInfo.canEditVote && !hasVoted) || (pollInfo.canEditVote && pollInfo.votesEditableUntil > new Date())) &&
                    pollInfo.votingBegins < new Date() &&
                    (pollInfo.votesEditableUntil);
+  if (!isVotingReady && showVotingNotStartedModal) {
+    return (
+      <VotingNotStartedModal
+        show={true}
+        votingStartTime={pollInfo?.votingBegins}
+      />
+    );
+  }
 
   return (
     <div className="flex-grow flex justify-center p-8">
@@ -281,6 +313,14 @@ function DiscussionVotingPage() {
 
         {/* Right Section - Info */}
         <div className="w-full md:w-1/3 p-8">
+              {user?.isAdmin && (
+                <button
+                  onClick={() => navigate(`/admin/discussion/${roomId}?user=${userId}`)} // Pass userId
+                  className="bg-[#1E4A8B] text-white rounded px-4 py-2 mb-8 w-full text-center"  // Changed from bg-navy-blue to #003366
+                >
+                  Go to Admin Panel
+                </button>
+              )}
             <div className="mb-8">
               {/* Display fetched username */}
               <h3 className="text-xl font-bold mb-2">Welcome, {username}</h3>
@@ -329,3 +369,31 @@ function DiscussionVotingPage() {
 }
 
 export default DiscussionVotingPage;
+
+
+
+const VotingNotStartedModal = ({ show, votingStartTime }) => {
+  if (!show) return null;
+
+  const formattedTime = votingStartTime ? votingStartTime.toLocaleString('de-DE', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false
+  }).replace(/\./g, '/') : 'N/A';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Voting Not Started Yet</h2>
+        <p className="text-gray-600 mb-6">
+          The voting for this room is scheduled to begin at:
+          <br />
+          <strong className="text-[#3395ff]">{formattedTime}</strong>
+        </p>
+        <p className="text-gray-600">
+          Please wait until the host starts the voting process.
+        </p>
+      </div>
+    </div>
+  );
+};

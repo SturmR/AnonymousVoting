@@ -60,6 +60,11 @@ function DiscussionRoom() {
   const [userToken, setUserToken] = useState(null); // Placeholder if needed later
   const [bgColorIndex, setBgColorIndex] = useState(0);
 
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDiscussionReady, setIsDiscussionReady] = useState(false); // Controls rendering of main content
+  const [showDiscussionNotStartedModal, setShowDiscussionNotStartedModal] = useState(false); // Controls blocking modal visibility
+
+
 
   // Update time remaining calculations
   const updateTimeRemaining = () => {
@@ -101,18 +106,34 @@ function DiscussionRoom() {
           votingEnds: new Date(roomData.votingEnd),
           votesEditableUntil: new Date(roomData.editVoteUntil),
           discussionEnds: new Date(roomData.discussionEnd),
+          discussionStarts: new Date(roomData.discussionStart),
         });
         if (userId && !roomData.userList.includes(userId)) {
           console.warn(`User ID ${userId} not found in room ${roomId}'s userList. Redirecting to error page.`);
           navigate('/error');
           return; // Stop further execution in this try block
         }
-        const [optRes, comRes] = await Promise.all([
-          axios.get(`/api/options?room=${roomId}`),
-          axios.get(`/api/comments?room=${roomId}`)
-        ]);
-        setOptions(optRes.data);
-        setComments(comRes.data);
+        const userResponse = await axios.get(`/api/users/${userId}`);
+        const user = userResponse.data;
+        const now = new Date();
+        const discussionHasStarted = new Date(roomData.discussionStart) <= now;
+        const discussionHasEnded = new Date(roomData.discussionEnd) <= now;
+        if (discussionHasEnded) {
+          navigate(`/rooms/${roomId}/vote?user=${userId}`);
+        } else if(!discussionHasStarted && !user?.isAdmin) {
+          setShowDiscussionNotStartedModal(true);
+          setIsDiscussionReady(false); 
+          return; // Stop further execution if discussion hasn't started
+        } else {
+          setIsDiscussionReady(true); // Set discussion as ready to render
+          setShowDiscussionNotStartedModal(false); // Hide modal if discussion has started
+          const [optRes, comRes] = await Promise.all([
+            axios.get(`/api/options?room=${roomId}`),
+            axios.get(`/api/comments?room=${roomId}`)
+          ]);
+          setOptions(optRes.data);
+          setComments(comRes.data);
+        }
         updateTimeRemaining(); // Initial calculation
       } catch (err) {
         console.error('Error fetching initial room data:', err);
@@ -266,6 +287,15 @@ function DiscussionRoom() {
     return <div className="p-8">Loading room details...</div>
   }
 
+  // If discussion is not ready AND we need to show the modal (i.e., not an admin)
+  if (!isDiscussionReady && showDiscussionNotStartedModal) {
+    return (
+      <DiscussionNotStartedModal
+        show={true}
+        discussionStartTime={pollInfo?.discussionStarts}
+      />
+    );
+  }
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -508,3 +538,29 @@ function DiscussionRoom() {
 }
 
 export default DiscussionRoom;
+
+const DiscussionNotStartedModal = ({ show, discussionStartTime }) => {
+  if (!show) return null;
+
+  const formattedTime = discussionStartTime ? discussionStartTime.toLocaleString('de-DE', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false
+  }).replace(/\./g, '/') : 'N/A';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Discussion Not Started Yet</h2>
+        <p className="text-gray-600 mb-6">
+          The discussion for this room is scheduled to begin at:
+          <br />
+          <strong className="text-[#3395ff]">{formattedTime}</strong>
+        </p>
+        <p className="text-gray-600">
+          Please wait until the host starts the discussion.
+        </p>
+      </div>
+    </div>
+  );
+};
