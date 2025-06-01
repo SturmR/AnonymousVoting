@@ -151,10 +151,12 @@ function AdminPickATimePage() {
       alert(`missing sth: ${isAnyDateMissing ? 'Dates' : ''}${isVotingTimeInvalid ? ', Voting Time' : ''}${isChangeVoteTimeInvalid ? ', Change Vote Time' : ''}${isDropdownInvalid ? ', Dropdowns' : ''}${isOptionsPerVoteInvalid ? ', Options Per Vote' : ''}`);
       setShowModal(false);
     } else {
+      console.log("Validation passed. Showing confirmation modal.");
       setShowModal(true);
     }
   }
   const handleConfirm = async () => {
+    console.log("handleConfirm called");
     setShowModal(false);
     try {
       const payload = {
@@ -167,6 +169,7 @@ function AdminPickATimePage() {
       };
       await axios.put(`/api/rooms/${roomId}`, payload);
       alert('Settings updated successfully.');
+      console.log('cahgned this');
     } catch (err) {
       console.error('Failed to update settings:', err);
       alert('Could not update settings. See console for details.');
