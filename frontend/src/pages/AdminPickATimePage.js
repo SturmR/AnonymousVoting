@@ -5,6 +5,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import DatePicker from "react-datepicker";
 import axios from 'axios';
 import classnames from 'classnames';
+import toast from 'react-hot-toast';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -126,7 +127,7 @@ function AdminPickATimePage() {
 
     } catch (error) {
       console.error('Error toggling option:', error);
-      alert('Failed to toggle option. Please try again.');
+      toast.error('Failed to toggle option. Please try again.');
     }
   };
 
@@ -148,7 +149,7 @@ function AdminPickATimePage() {
 
   const updateRoomSettings = async () => {
     if(isAnyDateMissing || isVotingTimeInvalid || isChangeVoteTimeInvalid || isDropdownInvalid || isOptionsPerVoteInvalid) {
-      alert(`missing sth: ${isAnyDateMissing ? 'Dates' : ''}${isVotingTimeInvalid ? ', Voting Time' : ''}${isChangeVoteTimeInvalid ? ', Change Vote Time' : ''}${isDropdownInvalid ? ', Dropdowns' : ''}${isOptionsPerVoteInvalid ? ', Options Per Vote' : ''}`);
+      toast.error(`missing sth: ${isAnyDateMissing ? 'Dates' : ''}${isVotingTimeInvalid ? ', Voting Time' : ''}${isChangeVoteTimeInvalid ? ', Change Vote Time' : ''}${isDropdownInvalid ? ', Dropdowns' : ''}${isOptionsPerVoteInvalid ? ', Options Per Vote' : ''}`);
       setShowModal(false);
     } else {
       console.log("Validation passed. Showing confirmation modal.");
@@ -168,11 +169,10 @@ function AdminPickATimePage() {
         maxOptionsPerVote: maxOptionsPerVote === 'no-limit' ? Number.MAX_SAFE_INTEGER : parseInt(maxOptionsPerVote, 10),
       };
       await axios.put(`/api/rooms/${roomId}`, payload);
-      alert('Settings updated successfully.');
-      console.log('cahgned this');
+      toast.success('Settings updated successfully.');
     } catch (err) {
       console.error('Failed to update settings:', err);
-      alert('Could not update settings. See console for details.');
+      toast.error('Could not update settings. See console for details.');
     }
   };
   // Date/Time picker component

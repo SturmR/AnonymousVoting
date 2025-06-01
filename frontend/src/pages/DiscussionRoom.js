@@ -4,6 +4,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Comment from '../components/Comment';
 import classnames from 'classnames'; // Use classnames instead
+import toast from 'react-hot-toast';
 
 const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
@@ -161,7 +162,7 @@ function DiscussionRoom() {
     if (!newOption.trim() || !pollInfo?.canAddOptions) return;
     // if the option exists, do not add it
     if (options.some(o => o.content === newOption)) { 
-      alert('Option already exists or is in the watchlist.');
+      toast.error('Option already exists or is in the watchlist.');
       return;
     }
     try {
@@ -179,7 +180,7 @@ function DiscussionRoom() {
       });
       setRoom(roomRes.data);
       if (user.isWatchlisted){
-        alert('You are in the watchlist. Your submitted option will be visible only after the host approves it.');
+        toast.error('You are in the watchlist. Your submitted option will be visible only after the host approves it.');
       }
       setNewOption('');
     } catch (e) {
@@ -192,7 +193,7 @@ function DiscussionRoom() {
     // *** MODIFICATION START ***
     // Check if userId exists (it should if the user followed the correct link)
     if (!userId) {
-      alert('Cannot post comment: User ID is missing. Please ensure you accessed this page via the link provided upon room creation.');
+      toast.error('Cannot post comment: User ID is missing. Please ensure you accessed this page via the link provided upon room creation.');
       return;
     }
     if (!newComment.trim()) return;
@@ -209,7 +210,7 @@ function DiscussionRoom() {
         if (!ok) return;  // abort if user cancels
       }
       if (user.isWatchlisted) {
-        alert('You are in the watchlist. Your submitted comment will be visible only after the host approves it.');
+        toast.error('You are in the watchlist. Your submitted comment will be visible only after the host approves it.');
       }
     } catch (err) {
       console.error('Similarity check failed:', err);
@@ -231,7 +232,7 @@ function DiscussionRoom() {
       setSelectedOpinion('');
     } catch (e) {
       console.error("Error adding comment:", e);
-      alert('Failed to post comment: '+(e.response?.data?.message||e.message));
+      toast.error('Failed to post comment: '+(e.response?.data?.message||e.message));
     }
   };
 
@@ -278,7 +279,7 @@ function DiscussionRoom() {
       });
     } catch (err) {
       console.error("Error voting on comment:", err);
-      alert('Failed to vote: ' + (err.response?.data?.message || err.message));
+      toast.error('Failed to vote: ' + (err.response?.data?.message || err.message));
     }
   };
 

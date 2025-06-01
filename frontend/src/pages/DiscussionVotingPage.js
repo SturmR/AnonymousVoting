@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import classnames from 'classnames'; // Use classnames instead
 import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
 
 const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3'];
 
@@ -106,10 +107,10 @@ function DiscussionVotingPage() {
         const now = new Date();
         const votingHasStarted = new Date(roomData.votingStart) <= now;
         const votingHasEnded = new Date(roomData.votingEnd) <= now;
-        alert(!user?.isAdmin);
+        toast.success(!user?.isAdmin);
 
         if (votingHasEnded) { // navigate to the results
-          alert('Voting has ended. Redirecting to results page.');
+          toast.success('Voting has ended. Redirecting to results page.');
           navigate(`/rooms/${roomId}/results`);
           return; // Stop further execution in this try block
         } else if (!votingHasStarted && !user?.isAdmin) {
@@ -209,10 +210,10 @@ function DiscussionVotingPage() {
       const updatedOptions = await axios.get(`/api/options?room=${roomId}`);
       setOptions(updatedOptions.data);
             
-      alert('Vote submitted successfully!');
+      toast.success('Vote submitted successfully!');
       fireConfetti();
     } catch (err) {
-      alert('Failed to submit vote: ' + err.message);
+      toast.success('Failed to submit vote: ' + err.message);
     }
   };
   

@@ -5,6 +5,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import DatePicker from "react-datepicker";
 import axios from 'axios';
 import Comment from '../components/Comment';
+import toast from 'react-hot-toast';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -176,7 +177,7 @@ function AdminDiscussionPage() {
 			setNewOption('');
 		} catch (err) {
 			console.error('Failed to add option:', err);
-			alert('Could not add option. See console for details.');
+			toast.error('Could not add option. See console for details.');
 		}
 	};
 
@@ -193,7 +194,7 @@ function AdminDiscussionPage() {
 
 			if (deleteResponse.status !== 200) {
 				console.error('Failed to delete option from database');
-				alert('Failed to remove option. Server error.');
+				toast.error('Failed to remove option. Server error.');
 				return; // Stop, and do not update UI
 			}
 			const updatedOptions = options.filter(option => option._id !== optionId);
@@ -203,14 +204,14 @@ function AdminDiscussionPage() {
 			});
 			if (roomUpdateResponse.status !== 200) {
 				console.error('Failed to update room options');
-				alert('Failed to remove option from room.');
+				toast.error('Failed to remove option from room.');
 				return;
 			}
 			setOptions(updatedOptions);
 			setComments(updatedComments);            
 		} catch (error) {
 			console.error('Error removing option:', error);
-			alert('Error removing option. Check console for details.');
+			toast.error('Error removing option. Check console for details.');
 		}
 	};
 
@@ -242,7 +243,7 @@ function AdminDiscussionPage() {
 			setUsersInRoom(updatedUsers);
 		} catch (err) {
 			console.error('Failed to update watchlist:', err);
-			alert('Server error. Please try again.'); // consistent error message
+			toast.error('Server error. Please try again.'); // consistent error message
 		}
 	};
 
@@ -264,7 +265,7 @@ function AdminDiscussionPage() {
 			setUsersInRoom(updatedUsers);
 		} catch (err) {
 			console.error('Failed to remove from watchlist:', err);
-			alert('Failed to remove user from watchlist.');
+			toast.error('Failed to remove user from watchlist.');
 		}
 	};
 
@@ -316,10 +317,10 @@ function AdminDiscussionPage() {
 			};
 			await axios.put(`/api/rooms/${roomId}`, payload);
 			// Optionally give feedback
-			alert('Settings updated successfully.');
+			toast.success('Settings updated successfully.');
 		} catch (err) {
 			console.error('Failed to update settings:', err);
-			alert('Could not update settings. See console for details.');
+			toast.error('Could not update settings. See console for details.');
 		}
 	};
 
@@ -409,7 +410,7 @@ function AdminDiscussionPage() {
 	  const addComment = async () => {
 		if (!newComment.trim()) return;
 		if (!userId) {
-			alert('No user ID found in URL. Please add `?user=<yourId>` to the query.');
+			toast.error('No user ID found in URL. Please add `?user=<yourId>` to the query.');
 			return;
 		}
 
@@ -431,7 +432,7 @@ function AdminDiscussionPage() {
 			fetchComments();
 		} catch (e) {
 			console.error('Error posting comment:', e);
-			alert('Failed to post comment: ' + (e.response?.data?.message || e.message));
+			toast.error('Failed to post comment: ' + (e.response?.data?.message || e.message));
 		}
 	};
 
@@ -441,7 +442,7 @@ function AdminDiscussionPage() {
 			fetchComments(); // Refresh comments to update the list
 		} catch (error) {
 			console.error("Failed to approve comment:", error);
-			alert("Failed to approve comment.");
+			toast.error("Failed to approve comment.");
 		}
 	};
 
@@ -451,7 +452,7 @@ function AdminDiscussionPage() {
 			fetchComments();
 		} catch (error) {
 			console.error("Failed to reject comment:", error);
-			alert("Failed to reject the comment");
+			toast.error("Failed to reject the comment");
 		}
 	};
 
@@ -462,7 +463,7 @@ function AdminDiscussionPage() {
 			setOptions(opts);
 		} catch (error) {
 			console.error("Failed to approve option:", error);
-			alert("Failed to approve the option");
+			toast.error("Failed to approve the option");
 		}
 	};
 
@@ -473,7 +474,7 @@ function AdminDiscussionPage() {
 			setOptions(opts);
 		} catch (error) {
 			console.error("Failed to reject option:", error);
-			alert("Failed to reject the option");
+			toast.error("Failed to reject the option");
 		}
 	};
 
@@ -484,7 +485,7 @@ function AdminDiscussionPage() {
 		fetchComments();
 		} catch (err) {
 		console.error('Failed to delete comment:', err);
-		alert('Failed to delete comment.');
+		toast.error('Failed to delete comment.');
 		}
 	};
 
@@ -501,10 +502,10 @@ function AdminDiscussionPage() {
 				`/api/rooms/${roomId}/remind`,
 				{ userIds: nonVoterIds }
 			);
-			alert(`Reminder emails sent to ${nonVotersCount} users.`);
+			toast.success(`Reminder emails sent to ${nonVotersCount} users.`);
 		} catch (err) {
 			console.error(err);
-			alert('Failed to send reminder emails.');
+			toast.error('Failed to send reminder emails.');
 		}
 		setIsSending(false);
 	};

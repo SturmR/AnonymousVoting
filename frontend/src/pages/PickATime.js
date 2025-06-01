@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Calendar, Clock, Plus, X } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import toast from 'react-hot-toast';
 
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -180,7 +181,7 @@ function PickATime() {
     setShowLinksModal(true);    
   } catch (err) {
     console.error(err);
-    alert(
+    toast.error(
       'Could not create room. Try again.\n' +
         (err.response?.data?.message || err.message)
     );
@@ -348,7 +349,7 @@ function PickATime() {
     if (!email) return;
     // Basic email format validation (optional but recommended)
     if (!/\S+@\S+\.\S+/.test(email)) {
-      alert('Please enter a valid email address.');
+      toast.error('Please enter a valid email address.');
       return;
     }
     if (!emails.includes(email)) { // Prevent duplicates
@@ -356,7 +357,7 @@ function PickATime() {
       setNewEmail('');
       setShowEmailInput(false); // Hide input after adding
     } else {
-      alert(`${email} has already been added.`);
+      toast.error(`${email} has already been added.`);
       setNewEmail(''); // Clear input even if duplicate
     }
   };
