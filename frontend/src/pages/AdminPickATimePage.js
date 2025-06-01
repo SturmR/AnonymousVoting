@@ -45,6 +45,9 @@ function AdminPickATimePage() {
   const [timeSlots, setTimeSlots] = useState([]);
   const [dates, setDates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [nonVotersCount, setNonVotersCount] = useState(0);
+  const [nonVoterIds, setNonVoterIds] = useState([]);
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,6 +105,18 @@ function AdminPickATimePage() {
           setUsersInRoom([]);
           setUsersNotVotedYet([]);
         }
+        const voteResponses = await Promise.all(
+          userIds.map(userId => axios.get(`/api/votes?user=${userId}&room=${roomId}`))
+        );
+
+        const nonVoters = userIds.filter((userId, index) => {
+          const votes = voteResponses[index].data;
+          return !votes || votes.length === 0;
+        });
+
+        setNonVoterIds(nonVoters);
+        setNonVotersCount(nonVoters.length);
+
       } catch (error) {
         setLoading(false);
         console.error('Error fetching room data:', error);
@@ -369,12 +384,34 @@ function AdminPickATimePage() {
         </div>
       );
     };
+
+  const sendReminderEmails = async () => {
+		console.log('About to remind:', nonVoterIds);
+		console.log('Count:', nonVotersCount);
+		if (nonVotersCount === 0) return;
+		setIsSending(true);
+		console.log("isSending");
+		try {
+			await axios.post(
+				`/api/rooms/${roomId}/remind`,
+				{ userIds: nonVoterIds }
+			);
+			toast.success(`Reminder emails sent to ${nonVotersCount} users.`);
+		} catch (err) {
+			console.error(err);
+			toast.error('Failed to send reminder emails.');
+		}
+		setIsSending(false);
+	};  
     
   const isAnyDateMissing =  !votingStartDate || !votingEndDate || (allowVoteChange==='yes' && !changeVoteUntilDate);
   const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate < votingStartDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && changeVoteUntilDate && votingEndDate && votingEndDate < changeVoteUntilDate;
   const isDropdownInvalid = minOptionsPerVote === 'Select' || maxOptionsPerVote === 'Select' || allowVoteChange === 'select';
   const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
+
+	const now = new Date();
+	const isVotingNotStarted = votingStartDate && now < votingStartDate;
 
   return (
     <div className="flex-grow flex flex-col">
@@ -534,6 +571,20 @@ function AdminPickATimePage() {
                   return <li key={user._id}>{user.email}</li>;
                 })}
               </ul>
+              <button
+							  onClick={sendReminderEmails}
+							  disabled={nonVotersCount === 0 || isSending || isVotingNotStarted}
+							  className={classnames(
+                  "px-4 py-2 bg-blue-600 text-white rounded",
+                  (nonVoterIds.length === 0 || isSending || isVotingNotStarted) && "opacity-50 cursor-not-allowed"
+                )}
+						  >
+                {isSending
+                  ? 'Sending…'
+                  : nonVotersCount === 0
+                    ? 'No one to remind'
+                    : `Remind ${nonVotersCount} non-voters`}
+              </button>
             </div>
           </div>
         </div>
