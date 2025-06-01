@@ -555,6 +555,8 @@ function AdminDiscussionPage() {
   const isDropdownInvalid = minOptionsPerVote === 'Select' || maxOptionsPerVote === 'Select' || allowVoteChange === 'select' || allowNewOptions === 'select';
   const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
 
+	const now = new Date();
+	const isVotingNotStarted = votingStartDate && now < votingStartDate;
 
 	return (
 		<div className="flex-grow flex flex-col">
@@ -849,7 +851,7 @@ function AdminDiscussionPage() {
 
 						<button
 							onClick={sendReminderEmails}
-							disabled={nonVotersCount === 0 || isSending}
+							disabled={nonVotersCount === 0 || isSending || isVotingNotStarted} //
 							className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
 						>
 							{isSending
