@@ -41,6 +41,7 @@ function AdminDiscussionPage() {
 	const [newWatchlistUser, setNewWatchlistUser] = useState('');
 
 	// State for date/time pickers
+	const [discussionStartDate, setDiscussionStartDate] = useState(null);
 	const [discussionEndDate, setDiscussionEndDate] = useState(null);
 	const [votingStartDate, setVotingStartDate] = useState(null);
 	const [votingEndDate, setVotingEndDate] = useState(null);
@@ -97,6 +98,7 @@ function AdminDiscussionPage() {
           return; // Stop further ex
         }
 				// 2) Parse & set all your date fields
+        setDiscussionStartDate(room.discussionStart ? new Date(room.discussionStart) : null);
 				setDiscussionEndDate(room.discussionEnd ? new Date(room.discussionEnd) : null);
 				setVotingStartDate(room.votingStart ? new Date(room.votingStart) : null);
 				setVotingEndDate(room.votingEnd ? new Date(room.votingEnd) : null);
@@ -269,6 +271,9 @@ function AdminDiscussionPage() {
 	// Handle date/time changes
 	const handleDateTimeChange = (date, type) => {
 		switch (type) {
+			case 'discussion-start':
+				setDiscussionStartDate(date);
+				break;
 			case 'discussion-end':
 				setDiscussionEndDate(date);
 				break;
@@ -299,6 +304,7 @@ function AdminDiscussionPage() {
 		try {
 			const payload = {
 				// match your backend property names exactly:
+				discussionStart: discussionStartDate ? discussionStartDate.toISOString() : null,
 				discussionEnd: discussionEndDate ? discussionEndDate.toISOString() : null,
 				votingStart: votingStartDate ? votingStartDate.toISOString() : null,
 				votingEnd: votingEndDate ? votingEndDate.toISOString() : null,
@@ -541,7 +547,8 @@ function AdminDiscussionPage() {
       );
     };
     
-  const isAnyDateMissing = !discussionEndDate || !votingStartDate || !votingEndDate || (allowVoteChange==='yes' && !changeVoteUntilDate);
+  const isAnyDateMissing = !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || (allowVoteChange==='yes' && !changeVoteUntilDate);
+  const isDiscussionTimeInvalid = discussionStartDate && discussionEndDate && discussionStartDate >= discussionEndDate;
   const isVotingTimeInvalid = votingStartDate && votingEndDate && votingStartDate >= votingEndDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && changeVoteUntilDate && votingEndDate && votingStartDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
   const isDropdownInvalid = minOptionsPerVote === 'Select' || maxOptionsPerVote === 'Select' || allowVoteChange === 'select' || allowNewOptions === 'select';
@@ -596,11 +603,21 @@ function AdminDiscussionPage() {
 						{/* Date and Time Selectors */}
 						<div className="space-y-4 relative">
 							<DateTimePicker
+								label="Discussion starts at:"
+								selectedDate={discussionStartDate}
+								onChange={(date) => handleDateTimeChange(date, 'discussion-start')}
+								id="discussion-start"
+							/>
+
+              <DateTimePicker
 								label="Discussion ends at:"
 								selectedDate={discussionEndDate}
 								onChange={(date) => handleDateTimeChange(date, 'discussion-end')}
 								id="discussion-end"
 							/>
+              {isVotingTimeInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Voting start time must be before the end time.</p>
+              )}
 
 							<DateTimePicker
 								label="Voting starts at:"
@@ -949,7 +966,6 @@ function AdminDiscussionPage() {
 					</div>
 				</div>
 			</div>
-      
       <ConfirmationModal />
 		</div>
 	);

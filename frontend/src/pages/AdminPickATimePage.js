@@ -33,6 +33,7 @@ function AdminPickATimePage() {
   const [usersInRoom, setUsersInRoom] = useState([]);
   const [showModal, setShowModal] = useState(false);
 
+  const [votingStartDate, setVotingStartDate] = useState(null);
   const [votingEndDate, setVotingEndDate] = useState(null);
   const [changeVoteUntilDate, setChangeVoteUntilDate] = useState(null);
   const [activeDatePicker, setActiveDatePicker] = useState(null);
@@ -72,10 +73,11 @@ function AdminPickATimePage() {
           navigate('/error');
           return; // Stop further ex
         }
+        setVotingStartDate(room.votingStart ? new Date(room.votingStart) : null);
         setVotingEndDate(room.votingEnd ? new Date(room.votingEnd) : null);
         setChangeVoteUntilDate(room.editVoteUntil ? new Date(room.editVoteUntil) : null);
-        setMinOptionsPerVote(room.minOptionsPerVote ? room.minOptionsPerVote : 'Select');
-        setMaxOptionsPerVote(room.maxOptionsPerVote ? room.maxOptionsPerVote : 'Select');
+        setMinOptionsPerVote(room.minOptionsPerVote===0 ? 'no-limit': room.minOptionsPerVote);
+        setMaxOptionsPerVote(room.maxOptionsPerVote===Number.MAX_SAFE_INTEGER ? 'no-limit' : room.maxOptionsPerVote);
         setAllowVoteChange(room.canEditVote ? 'yes' : 'no');
 
         const { data: opts } = await axios.get(`/api/options?room=${roomId}`);
@@ -130,6 +132,9 @@ function AdminPickATimePage() {
 
   const handleDateTimeChange = (date, type) => {
     switch (type) {
+      case 'voting-start':
+        setVotingStartDate(date);
+        break;
       case 'voting-end':
         setVotingEndDate(date);
         break;
@@ -142,8 +147,8 @@ function AdminPickATimePage() {
   };
 
   const updateRoomSettings = async () => {
-    if(isAnyDateMissing || isChangeVoteTimeInvalid || isDropdownInvalid || isOptionsPerVoteInvalid) {
-      console.log("Validation failed. Modal not shown.");
+    if(isAnyDateMissing || isVotingTimeInvalid || isChangeVoteTimeInvalid || isDropdownInvalid || isOptionsPerVoteInvalid) {
+      alert(`missing sth: ${isAnyDateMissing ? 'Dates' : ''}${isVotingTimeInvalid ? ', Voting Time' : ''}${isChangeVoteTimeInvalid ? ', Change Vote Time' : ''}${isDropdownInvalid ? ', Dropdowns' : ''}${isOptionsPerVoteInvalid ? ', Options Per Vote' : ''}`);
       setShowModal(false);
     } else {
       console.log("Validation passed. Showing confirmation modal.");
@@ -155,6 +160,7 @@ function AdminPickATimePage() {
     setShowModal(false);
     try {
       const payload = {
+        votingStart: votingStartDate ? votingStartDate.toISOString() : null,
         votingEnd: votingEndDate ? votingEndDate.toISOString() : null,
         editVoteUntil: changeVoteUntilDate ? changeVoteUntilDate.toISOString() : null,
         canEditVote: allowVoteChange === 'yes',
@@ -364,7 +370,8 @@ function AdminPickATimePage() {
       );
     };
     
-  const isAnyDateMissing =  !votingEndDate || (allowVoteChange==='yes' && !changeVoteUntilDate);
+  const isAnyDateMissing =  !votingStartDate || !votingEndDate || (allowVoteChange==='yes' && !changeVoteUntilDate);
+  const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate < votingStartDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && changeVoteUntilDate && votingEndDate && votingEndDate < changeVoteUntilDate;
   const isDropdownInvalid = minOptionsPerVote === 'Select' || maxOptionsPerVote === 'Select' || allowVoteChange === 'select';
   const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
@@ -432,12 +439,21 @@ function AdminPickATimePage() {
 
             {/* Date and Time Selectors */}
             <div className="space-y-4 relative">
+							<DateTimePicker
+								label="Voting starts at:"
+								selectedDate={votingStartDate}
+								onChange={(date) => handleDateTimeChange(date, 'voting-start')}
+								id="voting-start"
+							/>
               <DateTimePicker
                 label="Voting ends at:"
                 selectedDate={votingEndDate}
                 onChange={(date) => handleDateTimeChange(date, 'voting-end')}
                 id="voting-end"
               />
+              {isVotingTimeInvalid && (
+                <p className="text-red-500 text-sm -mt-2 ml-64 pl-1">Voting start time must be before the end time.</p>
+              )}
 
               {/* Dropdown Selectors */}
               <div className="flex items-center mb-4">
@@ -522,7 +538,7 @@ function AdminPickATimePage() {
           </div>
         </div>
       </div>
-      {ConfirmationModal()}
+      <ConfirmationModal />
     </div>
   );
 }
