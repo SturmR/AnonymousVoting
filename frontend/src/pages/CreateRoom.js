@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import toast from 'react-hot-toast';
 
 // Set default base URL for axios if not already set elsewhere
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -175,7 +176,7 @@ const handleConfirm = async () => {
     } catch (err) {
         console.error('Creation failed:', err);
         // Optionally roll back partial creations here
-        alert(`Could not create room/users/options: ${err.message}`);
+        toast.error(`Could not create room/users/options: ${err.message}`);
     }
 };
 
@@ -355,7 +356,7 @@ const handleConfirm = async () => {
     if (!email) return;
     // Basic email format validation (optional but recommended)
     if (!/\S+@\S+\.\S+/.test(email)) {
-        alert('Please enter a valid email address.');
+        toast.error('Please enter a valid email address.');
         return;
     }
     if (!emails.includes(email)) { // Prevent duplicates
@@ -363,7 +364,7 @@ const handleConfirm = async () => {
         setNewEmail('');
         setShowEmailInput(false); // Hide input after adding
     } else {
-        alert(`${email} has already been added.`);
+        toast.error(`${email} has already been added.`);
         setNewEmail(''); // Clear input even if duplicate
     }
   };
@@ -397,7 +398,7 @@ const handleConfirm = async () => {
 
     // Quick type check
     if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
-      alert('Please upload a valid .csv file.');
+      toast.error('Please upload a valid .csv file.');
       e.target.value = '';
       return;
     }
@@ -422,7 +423,7 @@ const handleConfirm = async () => {
       if (newEmails.length) {
         setEmails(prev => [...prev, ...newEmails]);
       } else {
-        alert('No new valid email addresses found in the CSV.');
+        toast.error('No new valid email addresses found in the CSV.');
       }
       // reset file input so you can re‐upload same file if needed
       e.target.value = '';

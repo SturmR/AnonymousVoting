@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
 import Home                   from './pages/Home';
 import CreateRoom             from './pages/CreateRoom';             // D&V creator
@@ -31,6 +32,24 @@ function RoomVoteRouter() {
 export default function App() {
   return (
     <Router>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            padding: '12px 16px',
+            fontSize: '15px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+          },
+          success: {
+            style: { background: '#22c55e', color: 'white' },
+          },
+          error: {
+            style: { background: '#ef4444', color: 'white' },
+          },
+        }}
+      />
       <Routes>
         {/* home / creation */}
         <Route path="/"               element={<Home />} />
