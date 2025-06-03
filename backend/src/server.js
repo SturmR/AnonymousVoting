@@ -23,6 +23,12 @@ app.get('/healthz', (req, res) => res.send('OK'));
 // Bootstrap the database and start the server
 (async () => {
   try {
+
+    const fs = require("fs");
+    const buildPath = path.join(__dirname, "../build/index.html");
+    console.log("Checking for build file at:", buildPath);
+    console.log("Exists?", fs.existsSync(buildPath));
+
     // Connect to MongoDB via Mongoose
     await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
