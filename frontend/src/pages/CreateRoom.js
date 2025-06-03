@@ -684,23 +684,28 @@ const handleConfirm = async () => {
                   />
                 )}
               </div>
-            </div>
 
-            {/* Spacer to push buttons down */}
-            <div className="flex-grow"></div>
-
-            {/* Action Buttons */}
-            <div className="space-y-3 mt-auto">
-               {formError && (
-                 <p className="text-red-500 text-sm mb-2 text-center">{formError}</p>
-               )}
-              <button
-                className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80] transition-colors"
-                onClick={handleCreate}
-              >
-                Create
-              </button>
+              {/* Action Buttons */}
+              <div className="space-y-3 mt-auto">
+                {formError && (
+                  <p className="text-red-500 text-sm mb-2 text-center">{formError}</p>
+                )}
+                <button
+                  className="w-full bg-[#004999] text-white rounded py-2 font-medium hover:bg-[#003e80] transition-colors"
+                  onClick={handleCreate}
+                >
+                  Create
+                </button>
+              </div>
             </div>
+            {/* Description */}
+            <div style={{ 
+              fontSize: '0.85rem', 
+              color: '#999', 
+              marginTop: '2em' 
+            }}>
+              You can change these features afterwards. 
+            </div>  
           </div>
         </div>
       </main>
