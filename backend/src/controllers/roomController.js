@@ -96,7 +96,7 @@ exports.remindNonVoters = async (req, res) => {
     await Promise.all(
       emails.map(address =>
         transporter.sendMail({
-          from: `"No-Reply" <no-reply@discussandvote.com>`,
+          from: process.env.SMTP_FROM || `"No-Reply" <${process.env.SMTP_USER}>`,
           to: address,
           subject: `Reminder to vote in "${room.title}"`,
           html: `
