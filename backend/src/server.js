@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require("path"); 
 
 // Route handlers
 const roomRoutes    = require('./routes/roomRoutes');
@@ -42,6 +43,15 @@ app.get('/healthz', (req, res) => res.send('OK'));
       const status  = err.statusCode || 500;
       const message = err.message    || 'Internal Server Error';
       res.status(status).json({ message });
+    });
+
+    // 3) Serve React’s build folder as static assets
+    //    (Make sure “build” really lives at ../build relative to this file)
+    app.use(express.static(path.join(__dirname, "../build")));
+
+    // 4) Catch-all: for any request that didn’t match /api, send back index.html
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(__dirname, "../build/index.html"));
     });
 
     // Start listening
