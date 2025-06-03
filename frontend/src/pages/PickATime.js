@@ -1,6 +1,5 @@
 // src/pages/PickATime.js
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, Clock, Plus, X } from 'react-feather';
 import DatePicker from "react-datepicker";
@@ -12,12 +11,11 @@ axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000
 function PickATime() {
   // State for the form
   const [question, setQuestion] = useState('');
-  const [options, setOptions] = useState([]);
+  const [options] = useState([]);
   const [emails, setEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [formError, setFormError] = useState('');
-  const navigate = useNavigate();
   
   // Date/time state
   const [votingStartDate, setVotingStartDate] = useState(null);
@@ -109,7 +107,7 @@ function PickATime() {
       // 2) Create the admin user
       const adminUsername = generateRandomUsername();
       const adminGeneratedId = generateRandomHexId();
-      const { data: adminUser} = await axios.post('/api/users', {
+      await axios.post('/api/users', {
         room:     createdRoomId,
         username: adminUsername,
         _id:      adminGeneratedId,
@@ -392,11 +390,12 @@ function PickATime() {
   };
   
   const isQuestionEmpty = question.trim() === '';
-  const isAnyDateMissing = !votingStartDate || !votingEndDate || (allowVoteChange === 'yes' && !changeVoteUntilDate);
+  // const isAnyDateMissing = !votingStartDate || !votingEndDate || (allowVoteChange === 'yes' && !changeVoteUntilDate);
   const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && votingStartDate && changeVoteUntilDate && votingEndDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
   const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10);
   const isEmailsInvalid = emails.length === 0;
+  /*
   const isDropdownInvalid =
       allowVoteChange === 'Select' ||
       minOptionsPerVote === 'Select' ||
@@ -409,6 +408,7 @@ function PickATime() {
       isChangeVoteTimeInvalid ||
       isEmailsInvalid ||
       isDropdownInvalid;
+  */
 
   return (
     <div className='min-h-screen flex flex-col'>

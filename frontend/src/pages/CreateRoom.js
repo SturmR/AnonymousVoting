@@ -1,6 +1,5 @@
 // src/pages/CreateRoom.js
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, Clock, X, Plus } from 'react-feather';
 import DatePicker from "react-datepicker";
@@ -19,7 +18,6 @@ function CreateRoom() {
   const [emails, setEmails] = useState([]);
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [formError, setFormError] = useState('');
-  const navigate = useNavigate();
 
   const [discussionStartDate, setDiscussionStartDate] = useState(null);
   const [discussionEndDate, setDiscussionEndDate] = useState(null);
@@ -116,7 +114,7 @@ const handleConfirm = async () => {
         // B) Create the **admin** user with a random ID
         const adminUsername = generateRandomUsername();
         const adminGeneratedId = generateRandomHexId(); // Generate random hex ID
-        const { data: adminUser } = await axios.post('/api/users', {
+        await axios.post('/api/users', {
             room:       createdRoomId,
             username:   adminUsername,
             // Instead of relying on MongoDB's ObjectId, use the generated one
@@ -403,18 +401,20 @@ const handleConfirm = async () => {
 
   // Validation flags (derived state)
   const isQuestionEmpty = question.trim() === '';
-  const isAnyDateMissing = !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || (allowVoteChange === 'yes' && !changeVoteUntilDate);
+  // const isAnyDateMissing = !discussionStartDate || !discussionEndDate || !votingStartDate || !votingEndDate || (allowVoteChange === 'yes' && !changeVoteUntilDate);
   const isDiscussionTimeInvalid = discussionStartDate && discussionEndDate && discussionEndDate <= discussionStartDate;
   const isVotingTimeInvalid = votingStartDate && votingEndDate && votingEndDate <= votingStartDate;
   const isChangeVoteTimeInvalid = allowVoteChange === 'yes' && votingStartDate && changeVoteUntilDate && votingEndDate && (changeVoteUntilDate <= votingStartDate || votingEndDate < changeVoteUntilDate);
   const isEmailsInvalid = emails.length === 0;
   const isOptionsPerVoteInvalid = minOptionsPerVote && maxOptionsPerVote && (parseInt(minOptionsPerVote, 10) > parseInt(maxOptionsPerVote, 10));
+  /*
   const isDropdownInvalid =
       allowSubmitOptions === 'Select' ||
       allowVoteChange === 'Select' ||
       minOptionsPerVote === 'Select' ||
       maxOptionsPerVote === 'Select';
   // Combine all validation checks
+  */
 
   const handleCsvUpload = (e) => {
     const file = e.target.files[0];
