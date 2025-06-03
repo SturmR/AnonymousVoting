@@ -1,5 +1,5 @@
 // src/pages/PickATime.js
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { Calendar, Clock, Plus, X } from 'react-feather';
 import DatePicker from "react-datepicker";
@@ -36,6 +36,8 @@ function PickATime() {
   const [showModal, setShowModal] = useState(false);
   const [showLinksModal, setShowLinksModal] = useState(false); // New modal for links
   const [generatedLinks, setGeneratedLinks] = useState([]); // State to store generated links
+
+  const fileInputRef = useRef(null);
 
   // Function to generate a random username
   const generateRandomUsername = () =>
@@ -410,6 +412,45 @@ function PickATime() {
       isDropdownInvalid;
   */
 
+  const handleCsvUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Quick type check
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+      toast.error('Please upload a valid .csv file.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      // split on newlines or commas
+      const entries = text
+        .split(/[\r\n,]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const emailRx = /\S+@\S+\.\S+/;
+      const newEmails = [];
+      entries.forEach(addr => {
+        if (emailRx.test(addr) && !emails.includes(addr) && !newEmails.includes(addr)) {
+          newEmails.push(addr);
+        }
+      });
+
+      if (newEmails.length) {
+        setEmails(prev => [...prev, ...newEmails]);
+      } else {
+        toast.error('No new valid email addresses found in the CSV.');
+      }
+      // reset file input so you can re‐upload same file if needed
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className='min-h-screen flex flex-col'>
       <main className="flex-grow flex justify-center p-8">
@@ -586,13 +627,24 @@ function PickATime() {
                   {attemptedSubmit && isEmailsInvalid && <p className="text-red-500 text-sm mb-2">Add at least one voter email.</p>}
 
               <div className="space-y-3 mb-6">
-                <button className="flex items-center border rounded-full px-4 py-1 text-sm">
-                  <Plus size={16} className="mr-1" /> Add Voters' emails via .csv file...
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={handleCsvUpload}
+                />
+                {/* CSV‐upload button */}
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="flex items-center border rounded-full px-4 py-1 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <Plus size={16} className="mr-1" /> Add via .csv file...
                 </button>
                 <button 
                     onClick={() => setShowEmailInput(!showEmailInput)}
                     className="flex items-center border rounded-full px-4 py-1 text-sm">
-                  <Plus size={16} className="mr-1" /> Add Voters' emails one by one...
+                  <Plus size={16} className="mr-1" /> Add one by one...
                 </button>
                 {showEmailInput && (
                   <input
