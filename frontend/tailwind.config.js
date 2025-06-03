@@ -6,8 +6,8 @@ module.exports = {
       colors: {
         primary: "#3395ff",
         secondary: "#cce4ff",
-        accent: "#99caff",
-        button: "#004999",
+        accent: "#8CC8EA",
+        button: "#1E4A8B",
       },
     },
   },
