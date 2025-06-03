@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "anonymous-voting-root": "file:",
+    "axios": "^1.9.0",
+    "backend": "file:",
+    "cors": "^2.8.5",
     "dotenv": "^16.0.0"
   }
 }
