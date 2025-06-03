@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, ArrowRight, X } from 'react-feather';
 import axios from 'axios';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
@@ -22,6 +22,9 @@ function DiscussionVotingPage() {
   // State for user data - fetch username based on userId
   const [username, setUsername] = useState('Loading...'); // Show loading state initially
   const [user, setUser] = useState(null); // Placeholder for user data
+
+  const hasAlreadyRedirected = useRef(false);
+
   useEffect(() => {
     if (!userId) {
       setUsername('Anonymous / No User ID'); // Handle case where user ID is missing
@@ -107,12 +110,13 @@ function DiscussionVotingPage() {
         const now = new Date();
         const votingHasStarted = new Date(roomData.votingStart) <= now;
         const votingHasEnded = new Date(roomData.votingEnd) <= now;
-        toast.success(!user?.isAdmin);
+        // toast.success(!user?.isAdmin);
 
-        if (votingHasEnded) { // navigate to the results
+        if (votingHasEnded && !hasAlreadyRedirected.current) {
+          hasAlreadyRedirected.current = true;
           toast.success('Voting has ended. Redirecting to results page.');
           navigate(`/rooms/${roomId}/results`);
-          return; // Stop further execution in this try block
+          return;
         } else if (!votingHasStarted && !user?.isAdmin) {
           setShowVotingNotStartedModal(true);
           setIsVotingReady(false); 
