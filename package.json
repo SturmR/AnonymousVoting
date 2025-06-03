@@ -1,0 +1,15 @@
+{
+  "name": "anonymous-voting-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "heroku-postbuild": "cd frontend && npm install && npm run build && mv build ../backend/build"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "anonymous-voting-root": "file:"
+  }
+}
