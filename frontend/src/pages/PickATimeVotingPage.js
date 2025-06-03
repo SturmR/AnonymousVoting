@@ -438,9 +438,9 @@ function PickATimeVotingPage() {
 
           <div className="mb-8">
             <h3 className="text-xl font-bold mb-4">Poll Info:</h3>
-            <p className="mb-1">Voting begins: {pollInfo.votingBegins ? formatDate(pollInfo.votingBegins) : 'N/A'}</p>
-            <p className="mb-1">Voting ends: {pollInfo.votingEnds ? formatDate(pollInfo.votingEnds) : 'N/A'}</p>
-            <p className="mb-4">Votes can be edited until: {pollInfo.votesEditableUntil ? formatDate(pollInfo.votesEditableUntil) : 'N/A'}</p>
+            <p className="mb-1">Voting begins: {formatDate(pollInfo.votingBegins)} {formatTime(pollInfo.votingBegins)}</p>
+            <p className="mb-1">Voting ends: {formatDate(pollInfo.votingEnds)} {formatTime(pollInfo.votingEnds)}</p>
+            {pollInfo.canEditVote ? (<p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)} {formatTime(pollInfo.votesEditableUntil)}</p> ) : (<p className="mb-4">Votes are not editable</p>) }
           </div>
 
           <div className="mb-8">
