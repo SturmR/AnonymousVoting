@@ -16,6 +16,8 @@ function RoomResults() {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [chartType, setChartType] = useState('bar'); // 'bar' or 'pie'
+  const [isResultsReady, setIsResultsReady] = useState(false); // Controls rendering of main content
+  const [showResultsNotStartedModal, setShowResultsNotStartedModal] = useState(false); // Controls blocking modal visibility
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -29,6 +31,14 @@ function RoomResults() {
           axios.get(`/api/comments?room=${roomId}`)
         ]);
 
+        if( new Date(roomRes.data.votingEnd) > new Date() ) { // voting has not ended
+          setShowResultsNotStartedModal(true);
+          setIsResultsReady(false); 
+          return;
+        } else {
+          setShowResultsNotStartedModal(false);
+          setIsResultsReady(true);
+        }
         // Process data
         const optionsWithVotes = optionsRes.data.map(option => ({
           ...option,
@@ -151,6 +161,11 @@ function RoomResults() {
   if (loading) return <div className="p-8 text-center">Loading results...</div>;
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
   // Ensure stats and voteDistribution exist before rendering charts
+  if( !isResultsReady ) { 
+    return (
+      <ResultsNotOutModal show={showResultsNotStartedModal} />
+    );
+  }
   if (!stats || !stats.voteDistribution) return <div className="p-8">No results found or data is incomplete.</div>;
 
   return (
@@ -305,3 +320,18 @@ function RoomResults() {
 }
 
 export default RoomResults;
+
+const ResultsNotOutModal = ({ show }) => {
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Results Are Not Available Yet</h2>
+        <p className="text-gray-600 mb-6">
+          Be patient! The results will be available after the voting ends.
+        </p>
+      </div>
+    </div>
+  );
+};

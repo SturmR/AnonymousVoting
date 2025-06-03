@@ -335,7 +335,7 @@ function DiscussionVotingPage() {
               <h3 className="text-xl font-bold mb-4">Poll Info:</h3>
               <p className="mb-1">Voting begins: {formatDate(pollInfo.votingBegins)}</p>
               <p className="mb-1">Voting ends: {formatDate(pollInfo.votingEnds)}</p>
-              { pollInfo.votesEditableUntil ? (<p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)}</p> ) : (<p className="mb-4">Votes are not editable</p>) }
+              { pollInfo.canEditVote ? (<p className="mb-4">Votes can be edited until: {formatDate(pollInfo.votesEditableUntil)}</p> ) : (<p className="mb-4">Votes are not editable</p>) }
             </div>
 
             <div className="mb-8">
