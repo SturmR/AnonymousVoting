@@ -177,8 +177,31 @@ function PickATime() {
         url:   `${window.location.origin}/rooms/${createdRoomId}/vote?user=${u.id}`
       }))
     ];
-    setGeneratedLinks(links);
+    setGeneratedLinks(links.filter(link => link.label === 'Admin Link'));
     setShowLinksModal(true);    
+
+    // ------------------------------------------------
+    // >>> ADDED: Send all voter links (excluding Admin) via email
+    // ------------------------------------------------
+    try {
+      const invitePayload = links
+        .filter(link => link.label !== 'Admin Link')
+        .map(link => ({
+          email: link.label,
+          url:   link.url
+        }));
+
+      await axios.post(
+        `/api/rooms/${createdRoomId}/send-invites`,
+        { invites: invitePayload }
+      );
+      toast.success("Invitation emails sent to voters!");
+    } catch (emailErr) {
+      console.error("Failed to send invitation emails:", emailErr);
+      toast.error("Could not send invitation emails. Check console for details.");
+    }
+    // ------------------------------------------------
+
   } catch (err) {
     console.error(err);
     toast.error(
@@ -314,8 +337,7 @@ function PickATime() {
             >
               <X size={20} />
             </button>
-          <h3 className="text-xl font-semibold mb-4">Room Created! User Links:</h3>
-          <p className="mb-4 text-sm text-gray-600">Copy and share these links with the respective users:</p>
+          <h3 className="text-xl font-semibold mb-4">Room Created! Here is your link:</h3>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {generatedLinks.map((link, index) => (
               <div key={index} className="border p-2 rounded bg-gray-50">

@@ -170,8 +170,33 @@ const handleConfirm = async () => {
                 url:   `${window.location.origin}/rooms/${createdRoomId}?user=${u.id}`
             }))
         ];
-        setGeneratedLinks(links);
+        setGeneratedLinks(links.filter(link => link.label === 'Admin Link'));
         setShowLinksModal(true);
+
+        // ------------------------------------------------
+        // >>> ADDED: Send all voter links (excluding Admin) via email
+        // ------------------------------------------------
+        try {
+          // Build an array of { email, url } for each non-admin link:
+          const invitePayload = links
+            .filter(link => link.label !== 'Admin Link')
+            .map(link => ({
+              email: link.label,  // since label was set to the user’s email
+              url:   link.url
+            }));
+
+          // POST to our new endpoint:
+          await axios.post(
+            `/api/rooms/${createdRoomId}/send-invites`,
+            { invites: invitePayload }
+          );
+          // Optionally, show a success toast:
+          toast.success("Invitation emails sent to voters!");
+        } catch (emailErr) {
+          console.error("Failed to send invitation emails:", emailErr);
+          toast.error("Could not send invitation emails. Check console for details.");
+        }
+        // ------------------------------------------------
 
     } catch (err) {
         console.error('Creation failed:', err);
@@ -306,8 +331,7 @@ const handleConfirm = async () => {
             >
               <X size={20} />
             </button>
-          <h3 className="text-xl font-semibold mb-4">Room Created! User Links:</h3>
-          <p className="mb-4 text-sm text-gray-600">Copy and share these links with the respective users:</p>
+          <h3 className="text-xl font-semibold mb-4">Room Created! Here is your link:</h3>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {generatedLinks.map((link, index) => (
               <div key={index} className="border p-2 rounded bg-gray-50">

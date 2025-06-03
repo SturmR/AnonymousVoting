@@ -121,3 +121,62 @@ exports.remindNonVoters = async (req, res) => {
     res.status(500).json({ error: 'Failed to send reminders' });
   }
 };
+
+// =====================
+// SEND INVITATION EMAILS
+// =====================
+/**
+ * POST /api/rooms/:id/send-invites
+ * Expects in req.body: { invites: [ { email: string, url: string } ] }
+ * For each object in invites array, send a simple “Your voting link” email.
+ */
+exports.sendInviteEmails = async (req, res, next) => {
+  try {
+    const roomId = req.params.id;
+    const { invites } = req.body; // array of { email, url }
+    if (!Array.isArray(invites) || invites.length === 0) {
+      return res.status(400).json({ message: "No invites provided" });
+    }
+
+    const room = await Room.findById(roomId).select('title');
+    const roomTitle = room ? room.title : roomId;
+
+    // 1) Set up your transporter (adjust to your SMTP details or use .env variables)
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,        // e.g. "smtp.gmail.com"
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,     // e.g. "your@gmail.com"
+        pass: process.env.SMTP_PASS      // your SMTP password/app password
+      }
+    });
+
+    // 2) For each invite, send one email
+    const sendPromises = invites.map(({ email, url }) => {
+      const mailOptions = {
+        from: process.env.SMTP_FROM || `"No-Reply" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: "Your link is ready!",
+        text: `Hello,
+
+You have been invited to vote in room "${roomTitle}". Please click the link below to participate:
+
+${url}
+
+Thank you!
+        `
+        // you could also add html: `<p>…</p>` if you prefer
+      };
+      return transporter.sendMail(mailOptions);
+    });
+
+    // Wait for all to send (if any fails, catch below)
+    await Promise.all(sendPromises);
+    return res.json({ message: "Invitations sent successfully" });
+  } catch (err) {
+    console.error("Error in sendInviteEmails:", err);
+    next(err);
+  }
+};
+

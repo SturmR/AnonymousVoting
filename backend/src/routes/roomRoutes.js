@@ -8,6 +8,8 @@ router.post('/', roomController.createRoom);
 router.get('/:id', roomController.getRoomById);
 router.put('/:id', roomController.updateRoom);
 
+router.post('/:id/send-invites', roomController.sendInviteEmails);
+
 // send reminder emails to non-voters
 router.post('/:id/remind', roomController.remindNonVoters);
 
